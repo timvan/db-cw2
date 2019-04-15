@@ -25,13 +25,13 @@ import uk.ac.bris.cs.databases.api.TopicView;
 public class API implements APIProvider {
 
     private final Connection c;
-    
+
     public API(Connection c) {
         this.c = c;
     }
 
     /* A.1 */
-    
+
     @Override
     public Result<Map<String, String>> getUsers(){
 
@@ -77,7 +77,7 @@ public class API implements APIProvider {
 
         // TODO should we handle a fatal error for other exceptions?
     }
-    
+
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         String query = ("INSERT INTO Person (name, username, stuId) VALUES (?,?,?)");
@@ -102,7 +102,7 @@ public class API implements APIProvider {
         }
 
     }
-    
+
     /* A.2 */
 
     @Override
@@ -114,24 +114,24 @@ public class API implements APIProvider {
     public Result createForum(String title) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
- 
+
     /* A.3 */
- 
+
     @Override
     public Result<List<ForumSummaryView>> getForums() {
         throw new UnsupportedOperationException("Not supported yet.");
-    }   
-    
+    }
+
     @Override
     public Result<ForumView> getForum(int id) {
         throw new UnsupportedOperationException("Not supported yet.");
-    }   
+    }
 
     @Override
     public Result<SimpleTopicView> getSimpleTopic(int topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
-    }    
-    
+    }
+
     @Override
     public Result<PostView> getLatestPost(int topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -141,24 +141,24 @@ public class API implements APIProvider {
     public Result createPost(int topicId, String username, String text) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-     
+
     @Override
     public Result createTopic(int forumId, String username, String title, String text) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-    
+
     @Override
     public Result<Integer> countPostsInTopic(int topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /* B.1 */
-       
+
     @Override
     public Result likeTopic(String username, int topicId, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-    
+
     @Override
     public Result likePost(String username, int topicId, int post, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");
