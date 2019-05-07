@@ -40,7 +40,6 @@ public class API implements APIProvider {
                 String name = rs.getString ("name");
                 users.put (username, name);
             }
-            ps.close();
             return Result.success (users);
 
         } catch (SQLException e) {
@@ -64,7 +63,6 @@ public class API implements APIProvider {
             String studentId = rs.getString ("stuId");
             PersonView user = new PersonView (name, username, studentId);
 
-            ps.close();
             return Result.success (user);
         } catch (SQLException e){
             return Result.fatal (e.getMessage());
@@ -78,19 +76,20 @@ public class API implements APIProvider {
         if (username == null || username.isEmpty ()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
         if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
 
+        Result usernameResult = usernameExists(username);
+        if( usernameResult.isFatal()) return usernameResult;
+        if (! usernameResult.isSuccess()) return Result.failure ("addNewPerson: " + usernameResult.getMessage());
+
         String sql = "INSERT INTO Person (name, username, stuId) "
                     + "VALUES (?, ?, ?)";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
-            if(usernameExists(username)) return Result.failure ("addNewPerson: Username already exists");
-
             ps.setString (1, name);
             ps.setString (2, username);
             ps.setString (3, studentId);
             ps.executeQuery ();
             c.commit ();
 
-            ps.close();
             return Result.success ();
 
         } catch (SQLException e) {
@@ -108,7 +107,7 @@ public class API implements APIProvider {
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
 
-        String sql = "SELECT id, title FROM Forum ORDER BY title *DESC";
+        String sql = "SELECT id, title FROM Forum ORDER BY title ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ArrayList<SimpleForumSummaryView> forums = new ArrayList<> ();
@@ -120,7 +119,6 @@ public class API implements APIProvider {
                 forums.add (new SimpleForumSummaryView (id, title));
             }
 
-            ps.close();
             return Result.success (forums);
         }
         catch (SQLException e) {
@@ -130,71 +128,65 @@ public class API implements APIProvider {
 
     @Override
     public Result createForum(String title) {
-        if (title == null || title.isEmpty ()) return Result.failure ("Missing or empty title");
+        if (title == null || title.isEmpty ()) return Result.failure ("createForum: Title cannot be empty");
 
-        String sql = "SELECT count(1) as c FROM Forum WHERE title = ?";
-
-        // Check if forum does not already exists
+        String sql = "INSERT INTO Forum (title) VALUES (?)";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
-            ps.setString (1, title);
-            ResultSet rs = ps.executeQuery ();
-
-            if (rs.next ()) {
-                if (rs.getInt("c") > 0) {
-                    return Result.failure ("This Forum name is already being used");
-                }
-            }
-        } catch (SQLException e) {
-            return Result.fatal (e.toString ());
-        }
-
-        // Forum name doesn't exist yet: Add num Forum to Database
-        String writeSql = "INSERT INTO Forum (title) VALUES (?)";
-        try (PreparedStatement ps = c.prepareStatement (writeSql)) {
+            if (forumTitleExists (title)) return Result.failure("createForum: Forum title already exists");
             ps.setString (1, title);
             ps.executeQuery ();
             c.commit();
+
+            return Result.success ();
+
         } catch (SQLException e) {
             try {
                 c.rollback();
-                return Result.fatal ("Forum couldn't be created");
+                return Result.fatal (e.getMessage ());
             } catch (SQLException f) {
-                return Result.fatal (f.toString ());
+                return Result.fatal (f.getMessage ());
             }
         }
-        return Result.success ();
     }
 
     /* A.3 */
 
     @Override
-    public Result<List<ForumSummaryView>> getForums() {
-        if (c == null) { return Result.fatal ("Error making connection"); }
+    public Result<List<ForumSummaryView>> getForums() { // TO FINISH §§§§§§§§§§§§§§§§
 
-        ArrayList<ForumSummaryView> forums = new ArrayList<> ();
-        String sql = "SELECT id, title FROM Forum;";
+        String sql = "SELECT *" +
+                " FROM Forum" +
+                " LEFT JOIN (" +
+                " SELECT * FROM Topic ORDER BY id DESC) AS T" +
+                " ON Forum.id = T.forumId" +
+                " GROUP BY Forum.id" +
+                " ORDER BY Forum.title ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
+            ArrayList<ForumSummaryView> forums = new ArrayList<> ();
 
             while (rs.next ()) {
-
-                int id = rs.getInt ("Forum.id");
+                int id = rs.getInt("id");
+                int forumId = rs.getInt ("Forum.id");
                 String title = rs.getString ("Forum.title");
-                SimpleTopicSummaryView lastTopic = getLastTopic(id);
-
+                String topicTitle = rs.getString("T.title");
+                SimpleTopicSummaryView lastTopic = new SimpleTopicSummaryView (
+                        id,
+                        forumId,
+                        topicTitle
+                );
                 forums.add (new ForumSummaryView (id, title, lastTopic));
             }
+            return Result.success (forums);
         }
         catch (SQLException e) {
-            return Result.fatal (e.toString ());
+            return Result.fatal (e.getMessage ());
         }
-        return Result.success (forums);
     }
 
     @Override
     public Result<ForumView> getForum(int id) {
-        if (c == null) { return Result.fatal ("Error making connection"); }
 
         String sql = "SELECT id, title FROM Forum WHERE id = ?";
 
@@ -202,42 +194,14 @@ public class API implements APIProvider {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery ();
 
-            if (!rs.next()) return Result.failure("Topic does not exist");
-
+            if (!rs.next()) return Result.failure("getForum: Forum does not exist");
             String forumTitle = rs.getString ("Forum.title");
             ForumView forum = new ForumView(id, forumTitle, getForumTopics(id));
-
             return Result.success (forum);
         }
         catch (SQLException e) {
-            return Result.fatal(e.toString());
+            return Result.fatal(e.getMessage());
         }
-    }
-
-    private ArrayList<SimpleTopicSummaryView> getForumTopics (int forumId) throws SQLException {
-        // TODO what's going on here with assuming connections? can't return result but should be tested?
-        // if (c == null) { return Result.fatal ("Error making connection"); }
-
-        ArrayList<SimpleTopicSummaryView> topics = new ArrayList<>();
-
-        String sql = "SELECT id, title FROM Topic WHERE forumId = ?";
-
-        try(PreparedStatement ps = c.prepareStatement (sql)){
-            ps.setInt(1, forumId);
-
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                topics.add(new SimpleTopicSummaryView (
-                        rs.getInt("id"),
-                        forumId,
-                        rs.getString("title")
-                ));
-            }
-
-            return topics;
-
-        } catch (SQLException e) { throw e; }
     }
 
     @Override
@@ -345,12 +309,14 @@ public class API implements APIProvider {
         if (text.equals("") || text == null) { Result.failure("Post cannot be empty"); }
         if (username.equals("") || username == null) { Result.failure("Username cannot be empty"); }
 
+        Result usernameResult = usernameExists(username);
+        if( usernameResult.isFatal()) return usernameResult;
+        if (! usernameResult.isSuccess()) return Result.failure ("createPost: " + usernameResult.getMessage());
 
         String sql = "INSERT INTO Post (authorId, content, topicId) VALUES (?, ?, ?)";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             if(!topicExists(topicId)) return Result.failure("Topic does not exist");
-            if(!usernameExists(username)) return Result.failure("User does not exist");
 
             int authorId = getUserId(username);
             ps.setInt (1, authorId);
@@ -380,8 +346,11 @@ public class API implements APIProvider {
         if (title.isEmpty() || title == null) { Result.failure("Missing or empty title"); }
         if (text.isEmpty() || text == null) { Result.failure("Missing or empty text"); }
 
+        Result usernameResult = usernameExists(username);
+        if( usernameResult.isFatal()) return usernameResult;
+        if (! usernameResult.isSuccess()) return Result.failure ("createTopic: " + usernameResult.getMessage());
+
         try {
-            if(!usernameExists(username)) return Result.failure ("Username does not exist");
             if(!forumExists (forumId)) return Result.failure("Forum does not exist");
 
             int userId = getUserId(username);
@@ -515,34 +484,44 @@ public class API implements APIProvider {
         return false;
     }
 
-    private boolean usernameExists(String username) throws SQLException {
-        String sql = "SELECT username" +
+    private Result<Integer> usernameExists(String username) {
+        String sql = "SELECT id" +
                 " FROM Person" +
                 " WHERE username = ?";
 
         try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery ();
-            return rs.next ();
+            if(rs.next ()) {
+                int id = rs.getInt("id");
+                return Result.success(id);
+            }
+            return Result.failure("Username not found");
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage()) ;
         }
     }
 
     private boolean forumExists(int forumId) throws SQLException {
-        String sql = "SELECT count(1) AS c FROM Forum WHERE id = ?";
+        String sql = "SELECT id" +
+                " FROM Forum WHERE id = ?";
 
-        try(PreparedStatement ps = c.prepareStatement (sql)) {
+        try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setInt(1, forumId);
             ResultSet rs = ps.executeQuery ();
-
-            if (rs.next () && rs.getInt("c") > 0) {
-                return true;
-            }
-
-        } catch (SQLException e){
-            throw e;
+            return rs.next ();
         }
+    }
+    // TODO Maybe delete this method and implement in one above ??
+    private boolean forumTitleExists(String title) throws SQLException {
+        String sql = "SELECT title" +
+                " FROM Forum WHERE title = ?";
 
-        return false;
+        try (PreparedStatement ps = c.prepareStatement (sql)){
+            ps.setString(1, title);
+            ResultSet rs = ps.executeQuery ();
+            return rs.next ();
+        }
     }
 
     private boolean topicExists(int topicId) throws SQLException {
@@ -563,16 +542,33 @@ public class API implements APIProvider {
         return false;
     }
 
+    private ArrayList<SimpleTopicSummaryView> getForumTopics (int forumId) throws SQLException {
+
+        String sql = "SELECT id, title FROM Topic WHERE forumId = ?";
+
+        try(PreparedStatement ps = c.prepareStatement (sql)){
+            ps.setInt(1, forumId);
+            ResultSet rs = ps.executeQuery();
+            ArrayList<SimpleTopicSummaryView> topics = new ArrayList<>();
+
+            while (rs.next()) {
+                topics.add(new SimpleTopicSummaryView (
+                        rs.getInt("id"),
+                        forumId,
+                        rs.getString("title")
+                ));
+            }
+            return topics;
+        }
+    }
+
     private SimpleTopicSummaryView getLastTopic(int forumId) throws SQLException {
 
-        String getLastTopicSQL = "SELECT id, title FROM Topic WHERE forumId = ? ORDER BY id DESC LIMIT 1";
-        try(PreparedStatement ps = c.prepareStatement(getLastTopicSQL);) {
+        String sql = "SELECT id, title FROM Topic WHERE forumId = ? ORDER BY id DESC LIMIT 1";
+        try(PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, forumId);
-
             ResultSet rs = ps.executeQuery();
-
             if(!rs.next()) return null;
-
             int id = rs.getInt("id");
             String title = rs.getString("title");
 
@@ -581,11 +577,7 @@ public class API implements APIProvider {
                     forumId,
                     title
             );
-
             return lastTopic;
-
-        } catch (SQLException e){
-            throw e;
         }
     }
 
