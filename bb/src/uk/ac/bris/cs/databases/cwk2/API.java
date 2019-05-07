@@ -201,7 +201,7 @@ public class API implements APIProvider {
             do {
                 int topicId = rs.getInt ("Topic.id");
                 String topicTitle = rs.getString ("Topic.title");
-                if (topicTitle != null || topicId == 0) {
+                if (topicTitle != null && topicId != 0) {
                     topics.add (new SimpleTopicSummaryView (topicId, forumId, topicTitle));
                 }
             } while (rs.next ());
