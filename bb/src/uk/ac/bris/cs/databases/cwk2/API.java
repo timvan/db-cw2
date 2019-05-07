@@ -28,7 +28,6 @@ public class API implements APIProvider {
 
     @Override
     public Result<Map<String, String>> getUsers() {
-        if (c == null) { return Result.fatal("Error making connection"); }
 
         HashMap<String, String> users = new HashMap<> ();
 
@@ -42,19 +41,16 @@ public class API implements APIProvider {
                 users.put (username, name);
             }
             ps.close();
+            return Result.success (users);
 
         } catch (SQLException e) {
-            return Result.fatal (e.toString ());
+            return Result.fatal (e.getMessage());
         }
-        return Result.success (users);
     }
 
     @Override
     public Result<PersonView> getPersonView(String username) {
-        if (c == null) { return Result.fatal("Error making connection"); }
-        if (username == null || username.isEmpty ()) { return Result.failure ("Username cannot be null"); }
-
-        PersonView user;
+        if (username == null || username.isEmpty ()) { return Result.failure ("getPersonView: Username cannot be empty"); }
 
         String sql = "SELECT * FROM Person WHERE username = ?";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
@@ -62,35 +58,31 @@ public class API implements APIProvider {
             ResultSet rs = ps.executeQuery ();
 
             if (!rs.next ()) {
-                return Result.failure ("Username doesn't match any existing user");
+                return Result.failure ("getPersonView: Username does not match any existing user");
             }
-
             String name = rs.getString ("name");
             String studentId = rs.getString ("stuId");
-            user = new PersonView (name, username, studentId);
+            PersonView user = new PersonView (name, username, studentId);
+
             ps.close();
-
+            return Result.success (user);
         } catch (SQLException e){
-            return Result.fatal (e.toString ());
+            return Result.fatal (e.getMessage());
         }
-
-        return Result.success (user);
     }
 
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-        if (c == null) { return Result.fatal ("Error making connection"); }
 
-        // TODO the handler is checking some the input - therefore some/all of the following checks may not be needed.
-        //  check where the method gets called.
-        if (name == null || name.isEmpty ()) { return Result.failure ("Missing or empty name"); }
-        if (username == null || username.isEmpty ()) { return Result.failure ("Missing or empty username"); }
-        if (studentId == null || studentId.isEmpty ()) { return Result.failure ("Missing or empty student id"); }
+        if (name == null || name.isEmpty ()) { return Result.failure ("addNewPerson: Name cannot be empty"); }
+        if (username == null || username.isEmpty ()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
+        if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
 
-        String anotherSql = "INSERT INTO Person (name, username, stuId) " + "VALUES (?, ?, ?)";
-        try (PreparedStatement ps = c.prepareStatement (anotherSql)) {
+        String sql = "INSERT INTO Person (name, username, stuId) "
+                    + "VALUES (?, ?, ?)";
 
-            if(usernameExists("username")) return Result.failure ("This username is already being used");
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
+            if(usernameExists(username)) return Result.failure ("addNewPerson: Username already exists");
 
             ps.setString (1, name);
             ps.setString (2, username);
@@ -98,44 +90,46 @@ public class API implements APIProvider {
             ps.executeQuery ();
             c.commit ();
 
+            ps.close();
+            return Result.success ();
+
         } catch (SQLException e) {
             try {
                 c.rollback ();
-                return Result.fatal ("User couldn't be created");
+                return Result.fatal (e.getMessage());
             } catch (SQLException f) {
-                return Result.fatal (f.toString ());
+                return Result.fatal (f.getMessage());
             }
         }
-
-        return Result.success ();
     }
 
     /* A.2 */
 
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        if (c == null) { return Result.fatal ("Error making connection"); }
 
-        ArrayList<SimpleForumSummaryView> forums = new ArrayList<> ();
+        String sql = "SELECT id, title FROM Forum ORDER BY title *DESC";
 
-        String sql = "SELECT * FROM Forum ORDER BY title ASC";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
+            ArrayList<SimpleForumSummaryView> forums = new ArrayList<> ();
             ResultSet rs = ps.executeQuery ();
+
             while(rs.next ()) {
                 int id = rs.getInt ("id");
                 String title = rs.getString ("title");
                 forums.add (new SimpleForumSummaryView (id, title));
             }
+
+            ps.close();
+            return Result.success (forums);
         }
         catch (SQLException e) {
-            return Result.fatal (e.toString ());
+            return Result.fatal (e.getMessage ());
         }
-        return Result.success (forums);
     }
 
     @Override
     public Result createForum(String title) {
-        if (c == null) { return Result.fatal ("Error making connection"); }
         if (title == null || title.isEmpty ()) return Result.failure ("Missing or empty title");
 
         String sql = "SELECT count(1) as c FROM Forum WHERE title = ?";
@@ -522,21 +516,15 @@ public class API implements APIProvider {
     }
 
     private boolean usernameExists(String username) throws SQLException {
-        String sql = "SELECT count(1) AS c FROM Person WHERE username = ?";
+        String sql = "SELECT username" +
+                " FROM Person" +
+                " WHERE username = ?";
 
-        try(PreparedStatement ps = c.prepareStatement (sql)){
+        try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery ();
-
-            if (rs.next () && rs.getInt("c") > 0) {
-                return true;
-            }
-
-        } catch (SQLException e){
-            throw e;
+            return rs.next ();
         }
-
-        return false;
     }
 
     private boolean forumExists(int forumId) throws SQLException {
