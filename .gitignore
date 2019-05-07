@@ -1,2 +1,4 @@
 *.class
 bb/.idea/
+.idea/
+bb.iml
