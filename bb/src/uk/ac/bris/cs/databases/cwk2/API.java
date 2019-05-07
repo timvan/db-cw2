@@ -243,35 +243,32 @@ public class API implements APIProvider {
             return Result.success(new SimpleTopicView(topicId, topicTitle, posts));
         }
         catch (SQLException e) {
-            return Result.fatal(e.toString());
+            return Result.fatal(e.getMessage ());
         }
     }
 
 
     @Override
     public Result<PostView> getLatestPost(int topicId) {
-        if (c == null) { throw new IllegalStateException (); }
-        /*PostView takes int forumId, int topicId, int postNumber,
-            String authorName, String authorUserName, String text,
-            String postedAt, int likes*/
-        String sql = "SELECT Forum.id, Topic.id, Post.id, Person.name, " +
-                "Person.username, Post.content, Post.postedAt, Post.likes " +
-                "FROM Forum JOIN Topic ON Topic.forumId = Forum.id " +
-                "JOIN Post ON Post.topicId = Topic.id " +
-                "JOIN Person ON Post.authorId = Person.id " +
-                "WHERE Topic.id = ? " +
-                "ORDER BY Post.postedAt";
+
+        String sql = "SELECT COUNT(*) as count, Forum.id, Topic.id, Post.id, Person.name," +
+                " Person.username, Post.content, Post.postedAt, Post.likes" +
+                " FROM Forum JOIN Topic ON Topic.forumId = Forum.id" +
+                " JOIN Post ON Post.topicId = Topic.id" +
+                " JOIN Person ON Post.authorId = Person.id" +
+                " WHERE Topic.id = ?" +
+                " ORDER BY Post.postedAt";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setString(1, Integer.toString(topicId));
             ResultSet rs = ps.executeQuery ();
 
             if (!rs.next()) {
-                return Result.failure("No topic with this id");
+                return Result.failure("getLatestPost: No topic with this id");
             }
 
             int forumId = rs.getInt("Forum.id");
-            int postId = rs.getInt("Post.id");
+            int number = rs.getInt("count");
             String authorName = rs.getString("Person.name");
             String authorUserName = rs.getString("Person.username");
             String content = rs.getString("Post.content");
@@ -281,7 +278,7 @@ public class API implements APIProvider {
             PostView postView = new PostView(
                     forumId,
                     topicId,
-                    postId,
+                    number,
                     authorName,
                     authorUserName,
                     content,
@@ -291,7 +288,7 @@ public class API implements APIProvider {
             return Result.success(postView);
         }
         catch (SQLException e) {
-            return Result.fatal(e.toString());
+            return Result.fatal(e.getMessage ());
         }
     }
 

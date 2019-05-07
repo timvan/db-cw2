@@ -31,6 +31,7 @@ CREATE TABLE Post (
   , authorId INTEGER NOT NULL
   , content TEXT NOT NULL
   , topicId INTEGER NOT NULL
+  , likes INTEGER DEFAULT 0
   , FOREIGN KEY (authorId) REFERENCES Person(id)
   , FOREIGN KEY (topicId) REFERENCES Topic(id)
 );
