@@ -78,7 +78,7 @@ public class API implements APIProvider {
 
         Result usernameResult = usernameExists(username);
         if( usernameResult.isFatal()) return usernameResult;
-        if (! usernameResult.isSuccess()) return Result.failure ("addNewPerson: " + usernameResult.getMessage());
+        if (usernameResult.isSuccess()) return Result.failure ("addNewPerson: username already exist");
 
         String sql = "INSERT INTO Person (name, username, stuId) "
                     + "VALUES (?, ?, ?)";
