@@ -1,15 +1,12 @@
 package uk.ac.bris.cs.databases.cwk2;
 
 import java.sql.*;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.sun.jna.platform.win32.OaIdl;
 import uk.ac.bris.cs.databases.api.*;
 
 /**
@@ -29,11 +26,11 @@ public class API implements APIProvider {
     @Override
     public Result<Map<String, String>> getUsers() {
 
-        HashMap<String, String> users = new HashMap<> ();
 
         String sql = "SELECT username, name FROM Person";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
+            HashMap<String, String> users = new HashMap<> ();
 
             while (rs.next ()) {
                 String username = rs.getString ("username");
@@ -61,9 +58,8 @@ public class API implements APIProvider {
             }
             String name = rs.getString ("name");
             String studentId = rs.getString ("stuId");
-            PersonView user = new PersonView (name, username, studentId);
 
-            return Result.success (user);
+            return Result.success ( new PersonView (name, username, studentId));
         } catch (SQLException e){
             return Result.fatal (e.getMessage());
         }
@@ -77,8 +73,8 @@ public class API implements APIProvider {
         if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
 
         Result usernameResult = usernameExists(username);
-        if( usernameResult.isFatal()) return usernameResult;
         if (usernameResult.isSuccess()) return Result.failure ("addNewPerson: username already exist");
+        if (usernameResult.isFatal()) return usernameResult;
 
         String sql = "INSERT INTO Person (name, username, stuId) "
                     + "VALUES (?, ?, ?)";
@@ -89,7 +85,6 @@ public class API implements APIProvider {
             ps.setString (3, studentId);
             ps.executeQuery ();
             c.commit ();
-
             return Result.success ();
 
         } catch (SQLException e) {
@@ -110,15 +105,14 @@ public class API implements APIProvider {
         String sql = "SELECT id, title FROM Forum ORDER BY title ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
-            ArrayList<SimpleForumSummaryView> forums = new ArrayList<> ();
             ResultSet rs = ps.executeQuery ();
+            ArrayList<SimpleForumSummaryView> forums = new ArrayList<> ();
 
-            while(rs.next ()) {
+            while (rs.next ()) {
                 int id = rs.getInt ("id");
                 String title = rs.getString ("title");
                 forums.add (new SimpleForumSummaryView (id, title));
             }
-
             return Result.success (forums);
         }
         catch (SQLException e) {
@@ -130,13 +124,15 @@ public class API implements APIProvider {
     public Result createForum(String title) {
         if (title == null || title.isEmpty ()) return Result.failure ("createForum: Title cannot be empty");
 
+        Result forumExists = forumTitleExists (title);
+        if (forumExists.isSuccess ()) return Result.failure("createForum: Forum title already exists");
+        if (forumExists.isFatal ()) return forumExists;
+
         String sql = "INSERT INTO Forum (title) VALUES (?)";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
-            if (forumTitleExists (title)) return Result.failure("createForum: Forum title already exists");
             ps.setString (1, title);
             ps.executeQuery ();
             c.commit();
-
             return Result.success ();
 
         } catch (SQLException e) {
@@ -310,8 +306,8 @@ public class API implements APIProvider {
         if (username.equals("") || username == null) { Result.failure("Username cannot be empty"); }
 
         Result usernameResult = usernameExists(username);
-        if( usernameResult.isFatal()) return usernameResult;
         if (! usernameResult.isSuccess()) return Result.failure ("createPost: " + usernameResult.getMessage());
+        if( usernameResult.isFatal()) return usernameResult;
 
         String sql = "INSERT INTO Post (authorId, content, topicId) VALUES (?, ?, ?)";
 
@@ -347,8 +343,8 @@ public class API implements APIProvider {
         if (text.isEmpty() || text == null) { Result.failure("Missing or empty text"); }
 
         Result usernameResult = usernameExists(username);
-        if( usernameResult.isFatal()) return usernameResult;
         if (! usernameResult.isSuccess()) return Result.failure ("createTopic: " + usernameResult.getMessage());
+        if( usernameResult.isFatal()) return usernameResult;
 
         try {
             if(!forumExists (forumId)) return Result.failure("Forum does not exist");
@@ -513,14 +509,20 @@ public class API implements APIProvider {
         }
     }
     // TODO Maybe delete this method and implement in one above ??
-    private boolean forumTitleExists(String title) throws SQLException {
-        String sql = "SELECT title" +
+    private Result<Integer> forumTitleExists(String title) {
+        String sql = "SELECT id" +
                 " FROM Forum WHERE title = ?";
 
         try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setString(1, title);
             ResultSet rs = ps.executeQuery ();
-            return rs.next ();
+            if (rs.next ()) {
+                int id = rs.getInt ("id");
+                return Result.success (id);
+            }
+            return Result.failure ("Forum title deosn't exist");
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage ());
         }
     }
 
