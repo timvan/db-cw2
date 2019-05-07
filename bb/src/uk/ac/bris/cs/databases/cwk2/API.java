@@ -160,20 +160,17 @@ public class API implements APIProvider {
             ResultSet rs = ps.executeQuery ();
             ArrayList<ForumSummaryView> forums = new ArrayList<> ();
 
-            int currentForumId = 0;
+            int currentForumId = -1;
             while (rs.next ()) {
-                int forumId = rs.getInt ("Forum.id");
 
+                int forumId = rs.getInt ("Forum.id");
                 if (forumId != currentForumId) {
-                    int id = rs.getInt("Topic.id");
-                    String title = rs.getString ("Forum.title");
+                    int topicId = rs.getInt("Topic.id");
+                    String forumTitle = rs.getString ("Forum.title");
                     String topicTitle = rs.getString("Topic.title");
-                    SimpleTopicSummaryView lastTopic = new SimpleTopicSummaryView (
-                            id,
-                            forumId,
-                            topicTitle
-                    );
-                    forums.add (new ForumSummaryView (id, title, lastTopic));
+                    SimpleTopicSummaryView topic = getSimpleTopicSummaryView (topicId, forumId, topicTitle);
+                    forums.add (new ForumSummaryView (forumId, forumTitle, topic));
+                    currentForumId = forumId;
                 }
             }
             return Result.success (forums);
@@ -186,16 +183,30 @@ public class API implements APIProvider {
     @Override
     public Result<ForumView> getForum(int id) {
 
-        String sql = "SELECT id, title FROM Forum WHERE id = ?";
+        String sql = "SELECT Forum.id, Forum.title, Topic.id, Topic.title " +
+                " FROM Forum" +
+                " LEFT JOIN Topic" +
+                " ON Forum.id = Topic.forumId" +
+                " WHERE Forum.id = ?";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery ();
 
             if (!rs.next()) return Result.failure("getForum: Forum does not exist");
+            int forumId = rs.getInt ("Forum.id");
             String forumTitle = rs.getString ("Forum.title");
-            ForumView forum = new ForumView(id, forumTitle, getForumTopics(id));
-            return Result.success (forum);
+            ArrayList<SimpleTopicSummaryView> topics = new ArrayList<> ();
+
+            do {
+                int topicId = rs.getInt ("Topic.id");
+                String topicTitle = rs.getString ("Topic.title");
+                if (topicTitle != null || topicId == 0) {
+                    topics.add (new SimpleTopicSummaryView (topicId, forumId, topicTitle));
+                }
+            } while (rs.next ());
+
+            return Result.success (new ForumView (forumId, forumTitle, topics));
         }
         catch (SQLException e) {
             return Result.fatal(e.getMessage());
@@ -204,55 +215,38 @@ public class API implements APIProvider {
 
     @Override
     public Result<SimpleTopicView> getSimpleTopic(int topicId) {
-        if (c == null) { throw new IllegalStateException (); }
 
-        String sql = "SELECT id, title FROM Topic WHERE id = ?";
+        String sql = "SELECT Post.id, Post.content, Post.postedAt, Person.name, Topic.title" +
+                " FROM Topic" +
+                " LEFT JOIN Post" +
+                " ON Topic.id = Post.topicId" +
+                " LEFT JOIN Person" +
+                " ON Post.authorId = Person.id" +
+                " WHERE Topic.id = ?" +
+                " ORDER BY Post.postedAt ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery ();
+            ArrayList<SimplePostView> posts = new ArrayList<>();
 
-            if (!rs.next()) return Result.failure("No topic with this id");
+            if (!rs.next()) return Result.failure("getSimpleTopic: No topic with this id");
+            String topicTitle = rs.getString("Topic.title");
+            do {
+                int postId = rs.getInt ("Post.id");
+                String personName = rs.getString("Person.name");
+                String postContent = rs.getString("Post.content");
+                String postPostedAt = rs.getString("Post.postedAt");
+                posts.add (new SimplePostView(postId, personName, postContent, postPostedAt) );
 
-            return Result.success(
-                    new SimpleTopicView(
-                            topicId,
-                            rs.getString("title"),
-                            getTopicsPosts(topicId)
-                    )
-            );
+            } while (rs.next ());
+            return Result.success(new SimpleTopicView(topicId, topicTitle, posts));
         }
         catch (SQLException e) {
             return Result.fatal(e.toString());
         }
     }
 
-    private ArrayList<SimplePostView> getTopicsPosts(int topicId) throws SQLException {
-
-        ArrayList<SimplePostView> posts = new ArrayList<>();
-        int count = 1;
-        String sql = "SELECT Post.content, Post.postedAt, Person.name " +
-                "FROM Post " +
-                "JOIN Person ON Person.id = Post.authorId " +
-                "WHERE Post.topicId = ? " +
-                "ORDER BY Post.postedAt ASC";
-
-        try (PreparedStatement ps = c.prepareStatement (sql)) {
-            ps.setInt(1, topicId);
-            ResultSet rs = ps.executeQuery ();
-
-            while (rs.next ()) {
-                posts.add(new SimplePostView(
-                        count++,
-                        rs.getString("Person.name"),
-                        rs.getString("Post.content"),
-                        rs.getString("Post.postedAt")
-                ));
-            }
-            return posts;
-
-        } catch (SQLException e) { throw e; } // TODO is this the correct way? does it capture all the stack trace?
-    }
 
     @Override
     public Result<PostView> getLatestPost(int topicId) {
@@ -544,6 +538,17 @@ public class API implements APIProvider {
         }
 
         return false;
+    }
+
+    private SimpleTopicSummaryView getSimpleTopicSummaryView (int topicId, int forumId, String topicTitle) {
+        SimpleTopicSummaryView lastTopic;
+        if (topicTitle == null) {
+            lastTopic = null;
+        }
+        else {
+            lastTopic = new SimpleTopicSummaryView (topicId, forumId, topicTitle);
+        }
+        return lastTopic;
     }
 
     private ArrayList<SimpleTopicSummaryView> getForumTopics (int forumId) throws SQLException {
