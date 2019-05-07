@@ -148,31 +148,33 @@ public class API implements APIProvider {
     /* A.3 */
 
     @Override
-    public Result<List<ForumSummaryView>> getForums() { // TO FINISH §§§§§§§§§§§§§§§§
+    public Result<List<ForumSummaryView>> getForums() {
 
         String sql = "SELECT *" +
                 " FROM Forum" +
-                " LEFT JOIN (" +
-                " SELECT * FROM Topic ORDER BY id DESC) AS T" +
-                " ON Forum.id = T.forumId" +
-                " GROUP BY Forum.id" +
-                " ORDER BY Forum.title ASC";
+                " LEFT JOIN Topic" +
+                " ON Forum.id = Topic.forumId" +
+                " ORDER BY Forum.id ASC, Topic.id DESC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
             ArrayList<ForumSummaryView> forums = new ArrayList<> ();
 
+            int currentForumId = 0;
             while (rs.next ()) {
-                int id = rs.getInt("id");
                 int forumId = rs.getInt ("Forum.id");
-                String title = rs.getString ("Forum.title");
-                String topicTitle = rs.getString("T.title");
-                SimpleTopicSummaryView lastTopic = new SimpleTopicSummaryView (
-                        id,
-                        forumId,
-                        topicTitle
-                );
-                forums.add (new ForumSummaryView (id, title, lastTopic));
+
+                if (forumId != currentForumId) {
+                    int id = rs.getInt("Topic.id");
+                    String title = rs.getString ("Forum.title");
+                    String topicTitle = rs.getString("Topic.title");
+                    SimpleTopicSummaryView lastTopic = new SimpleTopicSummaryView (
+                            id,
+                            forumId,
+                            topicTitle
+                    );
+                    forums.add (new ForumSummaryView (id, title, lastTopic));
+                }
             }
             return Result.success (forums);
         }
