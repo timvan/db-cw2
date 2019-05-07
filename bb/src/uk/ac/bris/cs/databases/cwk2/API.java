@@ -275,9 +275,11 @@ public class API implements APIProvider {
 
         ArrayList<SimplePostView> posts = new ArrayList<>();
         int count = 1;
-        String sql = "SELECT Post.content, Post.postedAt, Person.name FROM Post " +
+        String sql = "SELECT Post.content, Post.postedAt, Person.name " +
+                "FROM Post " +
                 "JOIN Person ON Person.id = Post.authorId " +
-                "WHERE Post.topicId = ? ORDER BY Post.postedAt DESC";
+                "WHERE Post.topicId = ? " +
+                "ORDER BY Post.postedAt ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt(1, topicId);
@@ -446,12 +448,14 @@ public class API implements APIProvider {
 
             if(!rs.next()) return Result.fatal("Failed getting count");
 
-            return rs.getInt("c");
+            int count = rs.getInt ("c");
+            return Result.success (count);
 
         } catch (SQLException e) {
             return Result.fatal(e.toString());
         }
     }
+
 
     /* B.1 */
 
