@@ -464,7 +464,7 @@ public class API implements APIProvider {
         Result usernameResult = usernameExists(username);
         if (!usernameResult.isSuccess()){
             if (usernameResult.isFatal()) return usernameResult;
-            return Result.failure ("createPost: " + usernameResult.getMessage());
+            return Result.failure ("likeTopic: " + usernameResult.getMessage());
         }
         int userId = (int) usernameResult.getValue();
 
@@ -472,7 +472,7 @@ public class API implements APIProvider {
         Result topicResult = topicExists(topicId);
         if (!topicResult.isSuccess()){
             if (topicResult.isFatal()) return topicResult;
-            return Result.failure ("createPost: " + topicResult.getMessage());
+            return Result.failure ("likeTopic: " + topicResult.getMessage());
         }
 
         String sql = "SELECT * FROM LikeTopic WHERE personId = ? AND topicId = ?";
@@ -495,7 +495,7 @@ public class API implements APIProvider {
             ps.setInt(userId, 1);
             ps.setInt(topicId, 2);
 
-            // if(ps.executeUpdate() != 1) throw new SQLException();
+            // if(ps.executeUpdate() != 1) throw new SQLException(); // TODO this checks if this has happened > should it be here? what about the others. causes exception..
             c.commit();
             return Result.success();
 
@@ -507,12 +507,72 @@ public class API implements APIProvider {
                 Result.fatal(f.getMessage());
             }
         }
-        return Result.fatal("");
+        return Result.fatal(""); // TODO apparently needs return statement?
     }
 
     @Override
     public Result likePost(String username, int topicId, int post, boolean like) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
+
+        // check user exists
+        Result usernameResult = usernameExists(username);
+        if (!usernameResult.isSuccess()){
+            if (usernameResult.isFatal()) return usernameResult;
+            return Result.failure ("createPost: " + usernameResult.getMessage());
+        }
+        int userId = (int) usernameResult.getValue();
+
+        // check topic exists
+        Result topicResult = topicExists(topicId);
+        if (!topicResult.isSuccess()){
+            if (topicResult.isFatal()) return topicResult;
+            return Result.failure ("createPost: " + topicResult.getMessage());
+        }
+
+        // check post exists
+        String sql = "SELECT * FROM Post WHERE Post.id = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(post, 1);
+            ResultSet rs = ps.executeQuery();
+
+            if(!rs.next()) return Result.failure("likePost: Post does not exist");
+        } catch (SQLException e) {
+            Result.fatal(e.getMessage());
+        }
+
+        // check if liked already...
+        sql = "SELECT * FROM LikePost WHERE personId = ? AND postId = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(userId, 1);
+            ps.setInt(post, 2);
+            ResultSet rs = ps.executeQuery();
+            if(rs.next()){
+                if(like) return Result.success();
+            }
+        } catch (SQLException e) {
+            Result.fatal(e.getMessage());
+        }
+
+        if(like) sql = "INSERT INTO LikePost (personId, postId) VALUES (?, ?)";
+        else sql = "DELETE FROM LikePost WHERE personId == ? AND postId == ?)";
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(userId, 1);
+            ps.setInt(post, 2);
+
+            // if(ps.executeUpdate() != 1) throw new SQLException(); // TODO this checks if this has happened > should it be here? what about the others. causes exception..
+            c.commit();
+            return Result.success();
+
+        } catch (SQLException e) {
+            try{
+                c.rollback();
+                Result.fatal(e.getMessage());
+            } catch (SQLException f) {
+                Result.fatal(f.getMessage());
+            }
+        }
+
+        return Result.fatal(""); // TODO apparently needs return statement?
     }
 
     @Override
