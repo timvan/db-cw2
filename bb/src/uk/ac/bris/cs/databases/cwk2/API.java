@@ -284,7 +284,7 @@ public class API implements APIProvider {
             String postAuthorUserName = rs.getString("Person.username");
             String postContent = rs.getString("Post.content");
             String postPostedAt = rs.getString("Post.postedAt");
-            int postLikes = rs.getInt("Post.likes");
+            int postLikes = rs.getInt("Post.likes"); // TODO THIS NOW NEEDS TO REFLECT THE LIKES OF A POST....
 
             return Result.success(new PostView(
                     forumId,

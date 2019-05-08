@@ -31,16 +31,26 @@ CREATE TABLE Post (
   , authorId INTEGER NOT NULL
   , content TEXT NOT NULL
   , topicId INTEGER NOT NULL
-  , likes INTEGER DEFAULT 0
   , FOREIGN KEY (authorId) REFERENCES Person(id)
   , FOREIGN KEY (topicId) REFERENCES Topic(id)
 );
 
-CREATE TABLE PostLike (
+CREATE TABLE LikeTopic (
+	id INTEGER PRIMARY KEY AUTO_INCREMENT
+  , authorId INTEGER NOT NULL
+  , topicId INTEGER NOT NULL
+  , FOREIGN KEY (authorId) REFERENCES Person(id)
+  , FOREIGN KEY (topicId) REFERENCES Topic(id)
+  , KEY (topicId, authorId)
+);
+
+
+CREATE TABLE LikePost (
 	id INTEGER PRIMARY KEY AUTO_INCREMENT
   , authorId INTEGER NOT NULL
   , postId INTEGER NOT NULL
   , FOREIGN KEY (authorId) REFERENCES Person(id)
   , FOREIGN KEY (postId) REFERENCES Post(id)
+  , KEY (postId, authorId)
 );
 
