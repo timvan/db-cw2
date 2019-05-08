@@ -251,6 +251,8 @@ public class API implements APIProvider {
                 posts.add (new SimplePostView(postNumber++, personName, postContent, postPostedAt) );
 
             } while (rs.next ());
+
+
             return Result.success(new SimpleTopicView(topicId, topicTitle, posts));
         }
         catch (SQLException e) {
@@ -262,13 +264,15 @@ public class API implements APIProvider {
     @Override
     public Result<PostView> getLatestPost(int topicId) {
 
-        String sql = "SELECT COUNT(*) as count, Forum.id, Topic.id, Post.id, Person.name," +
-                " Person.username, Post.content, Post.postedAt, Post.likes" +
-                " FROM Forum JOIN Topic ON Topic.forumId = Forum.id" +
-                " JOIN Post ON Post.topicId = Topic.id" +
+        String sql = "SELECT Forum.id, Topic.id, Post.id, Person.name," +
+                " Person.username, Post.content, Post.postedAt, likePost.id" +
+                " FROM Forum " +
+                " LEFT JOIN Topic ON Topic.forumId = Forum.id" +
+                " LEFT JOIN Post ON Post.topicId = Topic.id" +
+                " LEFT JOIN LikePost ON Post.id = LikePost.postId" +
                 " JOIN Person ON Post.authorId = Person.id" +
                 " WHERE Topic.id = ?" +
-                " ORDER BY Post.postedAt";
+                " ORDER BY Post.postedAt DESC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setString(1, Integer.toString(topicId));
@@ -279,12 +283,28 @@ public class API implements APIProvider {
             }
 
             int forumId = rs.getInt("Forum.id");
-            int postNumber = rs.getInt("count");
             String postAuthorName = rs.getString("Person.name");
             String postAuthorUserName = rs.getString("Person.username");
             String postContent = rs.getString("Post.content");
             String postPostedAt = rs.getString("Post.postedAt");
-            int postLikes = rs.getInt("Post.likes"); // TODO THIS NOW NEEDS TO REFLECT THE LIKES OF A POST....
+            int postLikes = 0;
+            int postNumber = 0;
+            int currentPostId = -1;
+
+            do {
+                // count amount of posts
+                int postId =  rs.getInt ("Post.id");
+                if (currentPostId != postId) {
+                    currentPostId = postId;
+                    postNumber++;
+                }
+                // count latest post likes
+                if (postNumber == 1 && rs.getInt ("likePost.id") > 0) {
+                    postLikes++;
+                }
+
+            } while (rs.next ());
+
 
             return Result.success(new PostView(
                     forumId,
