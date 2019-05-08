@@ -1,7 +1,9 @@
-DROP TABLE IF EXISTS PostLike;
+DROP TABLE IF EXISTS LikePost;
+DROP TABLE IF EXISTS LikeTopic;
 DROP TABLE IF EXISTS Post;
 DROP TABLE IF EXISTS Topic;
 DROP TABLE IF EXISTS Forum;
+DROP TABLE IF EXISTS Person;
 DROP TABLE IF EXISTS Person;
 
 CREATE TABLE Person (
@@ -37,20 +39,19 @@ CREATE TABLE Post (
 
 CREATE TABLE LikeTopic (
 	id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , authorId INTEGER NOT NULL
+  , personId INTEGER NOT NULL
   , topicId INTEGER NOT NULL
-  , FOREIGN KEY (authorId) REFERENCES Person(id)
+  , FOREIGN KEY (personId) REFERENCES Person(id)
   , FOREIGN KEY (topicId) REFERENCES Topic(id)
-  , KEY (topicId, authorId)
+  , UNIQUE (topicId, personId)
 );
-
 
 CREATE TABLE LikePost (
 	id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , authorId INTEGER NOT NULL
+  , personId INTEGER NOT NULL
   , postId INTEGER NOT NULL
-  , FOREIGN KEY (authorId) REFERENCES Person(id)
+  , FOREIGN KEY (personId) REFERENCES Person(id)
   , FOREIGN KEY (postId) REFERENCES Post(id)
-  , KEY (postId, authorId)
+  , UNIQUE  (postId, personId)
 );
 
