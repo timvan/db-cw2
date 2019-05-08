@@ -636,24 +636,27 @@ public class API implements APIProvider {
                 final String forumName = rs.getString ("Forum.title");
                 final String topicTitle = rs.getString ("Topic.title");
 
-                int currentPostId = 0;
-                int postNumber = 0;
+                int currentPostId = rs.getInt ("Post.id");
+                int postNumber = 1;
+                int postLikes = 0;
 
                 do  {
-                    int postLikes = 0;
                     int postId = rs.getInt ("Post.id");
                     if (postId != currentPostId) {
+                        String authorName = rs.getString ("Person.name");
+                        String authorUsername = rs.getString ("Person.username");
+                        String postText = rs.getString ("Post.content");
+                        String postPostedAt = rs.getString ("Post.postedAt");
+                        posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
                         currentPostId = postId;
                         postNumber++;
+                        postLikes = 0;
                     }
-                    String authorName = rs.getString ("Person.name");
-                    String authorUsername = rs.getString ("Person.username");
-                    String postText = rs.getString ("Post.content");
-                    String postPostedAt = rs.getString ("Post.postedAt");
-                    while (postId == currentPostId && rs.getInt ("LikePost.id") > 0) {
+                    else if (postId == currentPostId && rs.getInt ("LikePost.id") > 0) {
                         postLikes++;
                     }
-                    posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
+
+
                 } while (rs.next ());
 
                 return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
