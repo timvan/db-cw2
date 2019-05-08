@@ -674,17 +674,18 @@ public class API implements APIProvider {
 
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
-        if (username == null || username.isEmpty()) { Result.failure("getAdvancedPersonView: Username cannot be empty"); }
+        throw new UnsupportedOperationException("Not supported yet.");
 
-        // check user exists
-        Result usernameResult = usernameExists(username);
-        if (!usernameResult.isSuccess()) {
-            if (usernameResult.isFatal()) return usernameResult;
-            return Result.failure ("createTopic: " + usernameResult.getMessage());
-        }
-
-        int userId = (int) usernameResult.getValue();
-
+//        if (username == null || username.isEmpty()) { Result.failure("getAdvancedPersonView: Username cannot be empty"); }
+//
+//        // check user exists
+//        Result usernameResult = usernameExists(username);
+//        if (!usernameResult.isSuccess()) {
+//            if (usernameResult.isFatal()) return usernameResult;
+//            return Result.failure ("createTopic: " + usernameResult.getMessage());
+//        }
+//
+//        int userId = (int) usernameResult.getValue();
 
     }
 
