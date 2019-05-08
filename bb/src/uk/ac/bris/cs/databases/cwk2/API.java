@@ -354,11 +354,11 @@ public class API implements APIProvider {
 
         // check forum exists
         Result forumResult = forumExists(forumId);
-        if (!forumResult.isSuccess()) return Result.failure("createTopic: " + forumExists().getMessage());
+        if (!forumResult.isSuccess()) return Result.failure("createTopic: " + forumResult.getMessage());
         if (forumResult.isFatal()) return  forumResult;
 
 
-        try ()
+        try {
 
             int userId = getUserId(username);
 
