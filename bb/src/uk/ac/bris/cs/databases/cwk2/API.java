@@ -477,37 +477,36 @@ public class API implements APIProvider {
 
         String sql = "SELECT * FROM LikeTopic WHERE personId = ? AND topicId = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setInt(userId, 1);
-            ps.setInt(topicId, 2);
+            ps.setInt(1, userId);
+            ps.setInt(2, topicId);
             ResultSet rs = ps.executeQuery();
 
             if(rs.next()){
                 if(like) return Result.success();
-            };
+            }
         } catch (SQLException e) {
-            Result.fatal(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
 
         if(like) sql = "INSERT INTO LikeTopic (personId, topicId) VALUES (?, ?)";
-        else sql = "DELETE FROM LikeTopic WHERE personId == ? AND topicId == ?)";
+        else sql = "DELETE FROM LikeTopic WHERE personId = ? AND topicId = ?";
 
         try (PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setInt(userId, 1);
-            ps.setInt(topicId, 2);
+            ps.setInt(1, userId);
+            ps.setInt(2, topicId);
 
-            // if(ps.executeUpdate() != 1) throw new SQLException(); // TODO this checks if this has happened > should it be here? what about the others. causes exception..
+            ps.executeUpdate(); // TODO should we check the results have been made
             c.commit();
             return Result.success();
 
         } catch (SQLException e) {
             try{
                 c.rollback();
-                Result.fatal(e.getMessage());
+                return Result.fatal(e.getMessage());
             } catch (SQLException f) {
-                Result.fatal(f.getMessage());
+                return Result.fatal(f.getMessage());
             }
         }
-        return Result.fatal(""); // TODO apparently needs return statement?
     }
 
     @Override
@@ -529,50 +528,58 @@ public class API implements APIProvider {
             return Result.failure ("createPost: " + topicResult.getMessage());
         }
 
-        // check post exists
-        String sql = "SELECT * FROM Post WHERE Post.id = ?";
-        try (PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setInt(post, 1);
+        // check post exists - get post id from topic's post
+        // raise error if post > number of post for topic
+        String sql = "SELECT Post.id FROM Topic" +
+                " LEFT JOIN Post ON Post.topicId = Topic.id" +
+                " WHERE Topic.id = ?" +
+                " ORDER BY Post.id ASC";
+
+        int postId;
+        try (PreparedStatement ps = c.prepareStatement(sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)){
+            ps.setInt(1, post);
             ResultSet rs = ps.executeQuery();
 
-            if(!rs.next()) return Result.failure("likePost: Post does not exist");
+            if(rs.absolute(post) == false){
+                return  Result.failure("likePost: Post does not exist");
+            }
+            postId = rs.getInt("Post.id");
+
         } catch (SQLException e) {
-            Result.fatal(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
 
         // check if liked already...
         sql = "SELECT * FROM LikePost WHERE personId = ? AND postId = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setInt(userId, 1);
-            ps.setInt(post, 2);
+            ps.setInt(1, userId);
+            ps.setInt(2, postId);
             ResultSet rs = ps.executeQuery();
             if(rs.next()){
                 if(like) return Result.success();
             }
         } catch (SQLException e) {
-            Result.fatal(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
 
         if(like) sql = "INSERT INTO LikePost (personId, postId) VALUES (?, ?)";
-        else sql = "DELETE FROM LikePost WHERE personId == ? AND postId == ?)";
+        else sql = "DELETE FROM LikePost WHERE personId = ? AND postId = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setInt(userId, 1);
-            ps.setInt(post, 2);
+            ps.setInt(1, userId);
+            ps.setInt(2, postId);
 
-            // if(ps.executeUpdate() != 1) throw new SQLException(); // TODO this checks if this has happened > should it be here? what about the others. causes exception..
+            ps.executeUpdate(); // TODO should we check the results have been made
             c.commit();
             return Result.success();
 
         } catch (SQLException e) {
             try{
                 c.rollback();
-                Result.fatal(e.getMessage());
+                return Result.fatal(e.getMessage());
             } catch (SQLException f) {
-                Result.fatal(f.getMessage());
+                return Result.fatal(f.getMessage());
             }
         }
-
-        return Result.fatal(""); // TODO apparently needs return statement?
     }
 
     @Override
