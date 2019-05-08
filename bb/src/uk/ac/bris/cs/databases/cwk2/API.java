@@ -58,6 +58,7 @@ public class API implements APIProvider {
             }
             String name = rs.getString ("name");
             String studentId = rs.getString ("stuId");
+            if(studentId == null) studentId = "";
 
             return Result.success ( new PersonView (name, username, studentId));
         } catch (SQLException e){
@@ -175,7 +176,7 @@ public class API implements APIProvider {
                     int topicId = rs.getInt("Topic.id");
                     String forumTitle = rs.getString ("Forum.title");
                     String topicTitle = rs.getString("Topic.title");
-                    SimpleTopicSummaryView topic = getSimpleTopicSummaryView (topicId, forumId, topicTitle);
+                    SimpleTopicSummaryView topic = newSimpleTopicSummaryView (topicId, forumId, topicTitle);
                     forums.add (new ForumSummaryView (forumId, forumTitle, topic));
                     currentForumId = forumId;
                 }
@@ -238,6 +239,7 @@ public class API implements APIProvider {
             ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery ();
             ArrayList<SimplePostView> posts = new ArrayList<>();
+            int postNumber = 1;
 
             if (!rs.next()) return Result.failure("getSimpleTopic: No topic with this id");
             String topicTitle = rs.getString("Topic.title");
@@ -246,7 +248,7 @@ public class API implements APIProvider {
                 String personName = rs.getString("Person.name");
                 String postContent = rs.getString("Post.content");
                 String postPostedAt = rs.getString("Post.postedAt");
-                posts.add (new SimplePostView(postId, personName, postContent, postPostedAt) );
+                posts.add (new SimplePostView(postNumber++, personName, postContent, postPostedAt) );
 
             } while (rs.next ());
             return Result.success(new SimpleTopicView(topicId, topicTitle, posts));
@@ -308,18 +310,22 @@ public class API implements APIProvider {
 
         // check user exists
         Result usernameResult = usernameExists(username);
-        if (!usernameResult.isSuccess()) return Result.failure ("createPost: " + usernameResult.getMessage());
-        if (usernameResult.isFatal()) return usernameResult;
+        if (!usernameResult.isSuccess()){
+            if (usernameResult.isFatal()) return usernameResult;
+            return Result.failure ("createPost: " + usernameResult.getMessage());
+        }
+        int userId = (int) usernameResult.getValue();
 
         // check topic exists
         Result topicResult = topicExists(topicId);
-        if (!topicResult.isSuccess()) return Result.failure ("createPost: " + topicResult.getMessage());
-        if (topicResult.isFatal()) return topicResult;
+        if (!topicResult.isSuccess()){
+            if (topicResult.isFatal()) return topicResult;
+            return Result.failure ("createPost: " + topicResult.getMessage());
+        }
 
         String sql = "INSERT INTO Post (authorId, content, topicId) VALUES (?, ?, ?)";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
-            int authorId = getUserId(username);
-            ps.setInt (1, authorId);
+            ps.setInt (1, userId);
             ps.setString (2, text);
             ps.setInt (3, topicId);
 
@@ -347,49 +353,58 @@ public class API implements APIProvider {
         if (title == null || title.isEmpty()) { Result.failure("createTopic: Title cannot be empty"); }
         if (text == null || text.isEmpty()) { Result.failure("createTopic: Text cannot be empty"); }
 
+        // TODO should topic titles be unique?? atm it's not no evidence it should be in API provider
+
         // check user exists
         Result usernameResult = usernameExists(username);
-        if (!usernameResult.isSuccess()) return Result.failure ("createTopic: " + usernameResult.getMessage());
-        if (usernameResult.isFatal()) return usernameResult;
+        if (!usernameResult.isSuccess()) {
+            if (usernameResult.isFatal()) return usernameResult;
+            return Result.failure ("createTopic: " + usernameResult.getMessage());
+        }
+
+        int userId = (int) usernameResult.getValue();
 
         // check forum exists
         Result forumResult = forumExists(forumId);
-        if (!forumResult.isSuccess()) return Result.failure("createTopic: " + forumResult.getMessage());
-        if (forumResult.isFatal()) return  forumResult;
-
+        if (!forumResult.isSuccess()) {
+            if (forumResult.isFatal()) return  forumResult;
+            return Result.failure("createTopic: " + forumResult.getMessage());
+        }
 
         try {
+            int newTopicId;
 
-            int userId = getUserId(username);
+            // create topic
+            String newTopicSql = "INSERT INTO Topic (title, authorId, forumId) VALUES (?,?,?)";
+            try(PreparedStatement ps = c.prepareStatement(newTopicSql)) {
+                ps.setString(1, title);
+                ps.setInt(2, userId);
+                ps.setInt(3, forumId);
 
-            String newTopicSQL = "INSERT INTO Topic (title, authorId, forumId) VALUES (?,?,?)";
-            String newPostSQL = "INSERT INTO Post (authorId, topicId, content) VALUES (?,?,?)";
+                if(ps.executeUpdate () != 1) throw new SQLException();
+                ResultSet rs = ps.getGeneratedKeys();
+                if(!rs.next()) throw new SQLException();
+                newTopicId = rs.getInt(1);
 
-            PreparedStatement newTopicPs = c.prepareStatement (newTopicSQL, Statement.RETURN_GENERATED_KEYS);
-            PreparedStatement newPostPs = c.prepareStatement(newPostSQL);
+            } catch (SQLException e) {
+                throw e;
+            }
 
-            newTopicPs.setString(1, title);
-            newTopicPs.setInt(2, userId);
-            newTopicPs.setInt(3, forumId);
+            // create post
+            String newPostsql = "INSERT INTO Post (authorId, topicId, content) VALUES (?,?,?)";
+            try(PreparedStatement ps = c.prepareStatement(newPostsql)) {
+                ps.setInt(1, userId);
+                ps.setInt(2, newTopicId);
+                ps.setString(3, text);
 
-            int rowsAffected = newTopicPs.executeUpdate();
+                if(ps.executeUpdate () != 1) throw new SQLException();
 
-            if(rowsAffected != 1) return Result.fatal("Failed to create topic");
-
-            ResultSet generatedKeys = newTopicPs.getGeneratedKeys();
-
-            if(!generatedKeys.next()) return Result.fatal("Failed to get new topic key");
-
-            int newTopicId = generatedKeys.getInt(1);
-
-            newPostPs.setInt(1, userId);
-            newPostPs.setInt(2, newTopicId);
-            newPostPs.setString(3, text);
-
-            newPostPs.executeUpdate();
-            if(rowsAffected != 1) return Result.fatal("Failed to create post");
+            } catch (SQLException e) {
+              throw e;
+            }
 
             c.commit();
+            return Result.success();
 
         } catch (SQLException e) {
             try {
@@ -399,29 +414,25 @@ public class API implements APIProvider {
                 return Result.fatal (f.toString ());
             }
         }
-
-        return Result.success();
-
     }
 
     @Override
     public Result<Integer> countPostsInTopic(int topicId) {
-        if (c == null) { return Result.fatal ("Error making connection"); }
 
-        try {
-
-            String sql = "SELECT count(1) AS c FROM Topic JOIN Post ON Post.topicId = Topic.id WHERE Topic.id = ?";
-            PreparedStatement ps = c.prepareStatement (sql);
+        String sql = "SELECT count(1) AS c FROM Topic JOIN Post ON Post.topicId = Topic.id WHERE Topic.id = ?";
+        try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery ();
 
-            if(!rs.next()) return Result.fatal("Failed getting count");
+            int postCount = rs.getInt ("c");
 
-            int count = rs.getInt ("c");
-            return Result.success (count);
+            // TODO here we assumed that every Topic has one or more posts... therefore a count of zero means the topicId does not exist
+            if(postCount == 0) return Result.failure("createPost: topic does not exist");
+
+            return Result.success (postCount);
 
         } catch (SQLException e) {
-            return Result.fatal(e.toString());
+            return Result.failure("createPost: failed to count posts");
         }
     }
 
@@ -500,8 +511,6 @@ public class API implements APIProvider {
         }
     }
 
-
-    // TODO Maybe delete this method and implement in one above ??
     private Result<Integer> forumTitleExists(String title) {
         String sql = "SELECT id" +
                 " FROM Forum WHERE title = ?";
@@ -535,33 +544,12 @@ public class API implements APIProvider {
         }
     }
 
-
-
-    private SimpleTopicSummaryView getSimpleTopicSummaryView (int topicId, int forumId, String topicTitle) {
+    private SimpleTopicSummaryView newSimpleTopicSummaryView (int topicId, int forumId, String topicTitle) {
         SimpleTopicSummaryView lastTopic;
         if (topicTitle == null) {
-            lastTopic = null;
+            return null;
         }
-        else {
-            lastTopic = new SimpleTopicSummaryView (topicId, forumId, topicTitle);
-        }
-        return lastTopic;
-    }
-
-
-    private int getUserId (String username) throws SQLException {
-
-        String sql = "SELECT id FROM Person WHERE username = ?";
-        try(PreparedStatement ps = c.prepareStatement (sql)) {
-            ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
-
-            rs.next();
-            return rs.getInt(1);
-
-        } catch (SQLException e) {
-            throw e;
-        }
+        return new SimpleTopicSummaryView (topicId, forumId, topicTitle);
     }
 
 }
