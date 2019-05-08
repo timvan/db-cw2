@@ -68,7 +68,6 @@ public class API implements APIProvider {
 
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-
         if (name == null || name.isEmpty ()) { return Result.failure ("addNewPerson: Name cannot be empty"); }
         if (username == null || username.isEmpty ()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
         if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
@@ -461,7 +460,56 @@ public class API implements APIProvider {
 
     @Override
     public Result likeTopic(String username, int topicId, boolean like) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
+
+        // check user exists
+        Result usernameResult = usernameExists(username);
+        if (!usernameResult.isSuccess()){
+            if (usernameResult.isFatal()) return usernameResult;
+            return Result.failure ("createPost: " + usernameResult.getMessage());
+        }
+        int userId = (int) usernameResult.getValue();
+
+        // check topic exists
+        Result topicResult = topicExists(topicId);
+        if (!topicResult.isSuccess()){
+            if (topicResult.isFatal()) return topicResult;
+            return Result.failure ("createPost: " + topicResult.getMessage());
+        }
+
+        String sql = "SELECT * FROM LikeTopic WHERE personId = ? AND topicId = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(userId, 1);
+            ps.setInt(topicId, 2);
+            ResultSet rs = ps.executeQuery();
+
+            if(rs.next()){
+                if(like) return Result.success();
+            };
+        } catch (SQLException e) {
+            Result.fatal(e.getMessage());
+        }
+
+        if(like) sql = "INSERT INTO LikeTopic (personId, topicId) VALUES (?, ?)";
+        else sql = "DELETE FROM LikeTopic WHERE personId == ? AND topicId == ?)";
+
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(userId, 1);
+            ps.setInt(topicId, 2);
+
+            // if(ps.executeUpdate() != 1) throw new SQLException();
+            c.commit();
+            return Result.success();
+
+        } catch (SQLException e) {
+            try{
+                c.rollback();
+                Result.fatal(e.getMessage());
+            } catch (SQLException f) {
+                Result.fatal(f.getMessage());
+            }
+        }
+        return Result.fatal("");
     }
 
     @Override
