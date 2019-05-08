@@ -157,11 +157,12 @@ public class API implements APIProvider {
     @Override
     public Result<List<ForumSummaryView>> getForums() {
 
-        String sql = "SELECT *" +
+        String sql = "SELECT Forum.id, Forum.title, Topic.title, Topic.id, Post.postedAt" +
                 " FROM Forum" +
                 " LEFT JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
-                " ORDER BY Forum.title ASC, Topic.id DESC";
+                " LEFT JOIN Post ON Topic.id = Post.topicId" +
+                " ORDER BY Forum.title ASC, Post.postedAt DESC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
