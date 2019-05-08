@@ -54,4 +54,3 @@ CREATE TABLE LikePost (
   , FOREIGN KEY (postId) REFERENCES Post(id)
   , UNIQUE  (postId, personId)
 );
-
