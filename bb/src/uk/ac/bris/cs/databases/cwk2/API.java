@@ -302,9 +302,7 @@ public class API implements APIProvider {
                 if (postNumber == 1 && rs.getInt ("likePost.id") > 0) {
                     postLikes++;
                 }
-
             } while (rs.next ());
-
 
             return Result.success(new PostView(
                     forumId,
@@ -471,8 +469,33 @@ public class API implements APIProvider {
 
     @Override
     public Result<List<PersonView>> getLikers(int topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+        // check topic exists
+        Result topicResult = topicExists(topicId);
+        if (!topicResult.isSuccess()){
+            if (topicResult.isFatal()) return topicResult;
+            return Result.failure ("getLikers: " + topicResult.getMessage());
+        }
+
+        String sql = "SELECT * FROM Person" +
+                " LEFT JOIN LikeTopic" +
+                " ON Person.id = LikeTopic.authorId" +
+                " WHERE LikeTopic.topicId = ?" +
+                " ORDER BY name ASC";
+
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
+            ResultSet rs = ps.executeQuery ();
+            List<PersonView> users = new ArrayList<> ();
+
+            while (rs.next ()) {
+                String name = rs.getString ("Person.name");
+                String username = rs.getString ("Person.username");
+                String studentId = rs.getString ("Person.stuId");
+                users.add (new PersonView (name, username, studentId));
+            }
+            return Result.success (users);
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage ());
+        }    }
 
     @Override
     public Result<TopicView> getTopic(int topicId) {
