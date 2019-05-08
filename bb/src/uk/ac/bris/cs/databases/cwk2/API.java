@@ -538,7 +538,7 @@ public class API implements APIProvider {
 
         int postId;
         try (PreparedStatement ps = c.prepareStatement(sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)){
-            ps.setInt(1, post);
+            ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery();
 
             if(rs.absolute(post) == false){
