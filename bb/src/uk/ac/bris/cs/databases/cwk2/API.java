@@ -658,7 +658,7 @@ public class API implements APIProvider {
 
                 return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
             }
-            return Result.failure ("getTopic: ")
+            return Result.failure ("getTopic: No forum found for this topic");
 
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
