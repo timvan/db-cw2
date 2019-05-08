@@ -586,12 +586,13 @@ public class API implements APIProvider {
 
         String sql = "SELECT * FROM Person" +
                 " LEFT JOIN LikeTopic" +
-                " ON Person.id = LikeTopic.authorId" +
+                " ON Person.id = LikeTopic.personId" +
                 " WHERE LikeTopic.topicId = ?" +
                 " ORDER BY name ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
+            ps.setInt (1, topicId);
             List<PersonView> users = new ArrayList<> ();
 
             while (rs.next ()) {
@@ -607,7 +608,61 @@ public class API implements APIProvider {
 
     @Override
     public Result<TopicView> getTopic(int topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // check topic exists
+        Result topicResult = topicExists(topicId);
+        if (!topicResult.isSuccess()){
+            if (topicResult.isFatal()) return topicResult;
+            return Result.failure ("getTopic: " + topicResult.getMessage());
+        }
+
+        String sql = "SELECT * FROM Forum" +
+                " JOIN Topic" +
+                " ON Forum.id = Topic.forumId" +
+                " JOIN Post" +
+                " ON Topic.id = Post.topicId" +
+                " JOIN Person" +
+                " ON Post.authorId = Person.id" +
+                " LEFT JOIN LikePost" +
+                " ON Post.id = LikePost.postId" +
+                " WHERE Topic.id = ?";
+
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
+            ps.setInt (1, topicId);
+            ResultSet rs = ps.executeQuery ();
+            ArrayList<PostView> posts = new ArrayList<> ();
+
+            if (rs.next ()) {
+                final int forumId = rs.getInt("Forum.id");
+                final String forumName = rs.getString ("Forum.title");
+                final String topicTitle = rs.getString ("Topic.title");
+
+                int currentPostId = 0;
+                int postNumber = 0;
+
+                do  {
+                    int postLikes = 0;
+                    int postId = rs.getInt ("Post.id");
+                    if (postId != currentPostId) {
+                        currentPostId = postId;
+                        postNumber++;
+                    }
+                    String authorName = rs.getString ("Person.name");
+                    String authorUsername = rs.getString ("Person.username");
+                    String postText = rs.getString ("Post.content");
+                    String postPostedAt = rs.getString ("Post.postedAt");
+                    while (postId == currentPostId && rs.getInt ("LikePost.id") > 0) {
+                        postLikes++;
+                    }
+                    posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
+                } while (rs.next ());
+
+                return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
+            }
+            return Result.failure ("getTopic: ")
+
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage ());
+        }
     }
 
     /* B.2 */
