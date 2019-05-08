@@ -55,3 +55,7 @@ CREATE TABLE LikePost (
   , FOREIGN KEY (postId) REFERENCES Post(id)
   , UNIQUE  (postId, personId)
 );
+
+SELECT COUNT(*) as topicLikes, Person.username, Person.name, Person.stuId FROM Topic JOIN Person ON Topic.authorId = Person.id JOIN LikeTopic ON Topic.id = LikeTopic.topicId  WHERE Person.username = 'stdusr1';
+
+

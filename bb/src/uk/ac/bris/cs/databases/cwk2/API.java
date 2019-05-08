@@ -685,19 +685,35 @@ public class API implements APIProvider {
 
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
+
+
+
+        // Params needed: String name, String username, String studentId,
+        //            int topicLikes, int postLikes, List<TopicSummaryView> liked
+
+
+        String topicLikesSql = "SELECT COUNT(*) as topicLikes, Person.username, Person.name, Person.stuId FROM Topic" +
+                " JOIN Person" +
+                " ON Topic.authorId = Person.id" +
+                " JOIN LikeTopic" +
+                " ON Topic.id = LikeTopic.topicId" +
+                " WHERE Person.username = ?" ;
+
+        String postLikesSql = "SELECT COUNT(*) as postLike FROM Post" +
+                " JOIN Person" +
+                " ON Post.authorId = Person.id" +
+                " JOIN LikePost" +
+                " ON Post.id = LikePost.postId" +
+                " WHERE Person.username = ?" ;
+
+
+        // Required for:  List<TopicSummaryView> liked
+
+        // int topicId, int forumId, String title, int postCount,
+        //            String created, String lastPostTime, String lastPostName, int likes,
+        //            String creatorName, String creatorUserName
+
         throw new UnsupportedOperationException("Not supported yet.");
-
-//        if (username == null || username.isEmpty()) { Result.failure("getAdvancedPersonView: Username cannot be empty"); }
-//
-//        // check user exists
-//        Result usernameResult = usernameExists(username);
-//        if (!usernameResult.isSuccess()) {
-//            if (usernameResult.isFatal()) return usernameResult;
-//            return Result.failure ("createTopic: " + usernameResult.getMessage());
-//        }
-//
-//        int userId = (int) usernameResult.getValue();
-
     }
 
     @Override
