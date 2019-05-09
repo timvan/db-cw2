@@ -16,6 +16,8 @@ import uk.ac.bris.cs.databases.api.*;
 public class API implements APIProvider {
 
     private final Connection c;
+    private final int longStringLength = 100; //Database varchar length
+    private final int shortStringLength = 10; //Database varchar length
 
     public API(Connection c) {
         this.c = c;
@@ -69,8 +71,11 @@ public class API implements APIProvider {
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         if (name == null || name.isEmpty ()) { return Result.failure ("addNewPerson: Name cannot be empty"); }
+        if (name.length() > longStringLength) { return Result.failure("addNewPerson: Name too long"); }
         if (username == null || username.isEmpty ()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
+        if (username.length() > shortStringLength) { return Result.failure("addNewPerson: Username too long");}
         if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
+        if (studentId != null && studentId.length() > shortStringLength) { return Result.failure("addNewPerson: Student ID too long");}
 
         Result usernameResult = usernameExists(username);
         if (usernameResult.isSuccess()) return Result.failure ("addNewPerson: username already exist");
@@ -126,6 +131,7 @@ public class API implements APIProvider {
     @Override
     public Result createForum(String title) {
         if (title == null || title.isEmpty ()) return Result.failure ("createForum: Title cannot be empty");
+        if (title.length() > longStringLength) return Result.failure("createForum: Title exceeds 100 characters");
 
         // check forum title does not already exist
         Result forumExists = forumTitleExists (title);
@@ -325,6 +331,7 @@ public class API implements APIProvider {
         // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
         if (text == null || text.isEmpty()) { Result.failure("createPost: Text cannot be empty"); }
         if (username == null || username.isEmpty()) { Result.failure("createPost: Username cannot be empty"); }
+        if (username != null && username.length() > shortStringLength) { Result.failure("createPost: Username too long"); }
 
         // check user exists
         Result usernameResult = usernameExists(username);
@@ -368,7 +375,9 @@ public class API implements APIProvider {
     public Result createTopic(int forumId, String username, String title, String text) {
         // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
         if (username == null || username.isEmpty()) { Result.failure("createTopic: Username cannot be empty"); }
+        if (username != null && username.length() > shortStringLength) { Result.failure("createTopic: username too long"); }
         if (title == null || title.isEmpty()) { Result.failure("createTopic: Title cannot be empty"); }
+        if (title != null && title.length() > longStringLength) { Result.failure("createTopic: Title too long"); }
         if (text == null || text.isEmpty()) { Result.failure("createTopic: Text cannot be empty"); }
 
         // TODO should topic titles be unique?? atm it's not no evidence it should be in API provider
@@ -624,7 +633,7 @@ public class API implements APIProvider {
     @Override
     public Result<TopicView> getTopic(int topicId) {
 
-        String sql = "SELECT * FROM Forum" +
+        String sql = "SELECT Forum.*, Topic.title, Person.name, Person.username, Post.*, LikePost.id FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
                 " LEFT JOIN Post" +
@@ -633,12 +642,14 @@ public class API implements APIProvider {
                 " ON Post.authorId = Person.id" +
                 " LEFT JOIN LikePost" +
                 " ON Post.id = LikePost.postId" +
-                " WHERE Topic.id = ?";
+                " WHERE Topic.id = ?" +
+                " ORDER BY Post.id";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt (1, topicId);
             ResultSet rs = ps.executeQuery ();
             ArrayList<PostView> posts = new ArrayList<> ();
+
 
             if (rs.next ()) {
                 int forumId = rs.getInt("Forum.id");
@@ -675,6 +686,9 @@ public class API implements APIProvider {
                         authorUsername = rs.getString ("Person.username");
                         postText = rs.getString ("Post.content");
                         postPostedAt = rs.getString ("Post.postedAt");
+                        if (rs.getInt ("LikePost.id") > 0) {
+                            postLikes++;
+                        }
                         posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
                     }
                 } while (rs.next ());
