@@ -808,13 +808,22 @@ public class API implements APIProvider {
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
-                else {
+                if (topicId != currentTopicId) {
                     topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
 
                     currentTopicId = topicId;
                     topicLikesCount = 0;
                     postCount = 0;
+                }
+                if (rs.last ()) {
+                    forumId = rs.getInt ("Forum.id");
+                    topicTitle = rs.getString ("Topic.title");
+                    topicCreatedAt =  rs.getString ("Topic.postedAt");
+                    postCreatorName = rs.getString ("Person.name");
+                    postCreatorUsername = rs.getString ("Person.username");
+                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
+                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
                 }
             }
             return Result.success (new AdvancedPersonView (name, username, studentId, topicLikes, postLikes, topicLiked));
