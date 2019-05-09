@@ -773,8 +773,8 @@ public class API implements APIProvider {
             ps.setInt(1, userId);
             ResultSet rs = ps.executeQuery ();
 
-            int postCount = 0;
-            int topicLikesCount = 0;
+            int postCount = 1;
+            int topicLikesCount = 1;
             int currentPostId = -1;
             int currentTopicId = -1;
             int forumId = -1;
@@ -792,8 +792,16 @@ public class API implements APIProvider {
                     currentTopicId = topicId;
                     currentPostId = postId;
                 }
-                if (topicId == currentTopicId) {
-                    if (postCount == 0) {
+                if (topicId != currentTopicId) {
+                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
+                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
+
+                    currentTopicId = topicId;
+                    topicLikesCount = 1;
+                    postCount = 1;
+                }
+                else if (topicId == currentTopicId) {
+                    if (postCount == 1) {
                         lastPostName = rs.getString ("Post.content");
                         lastPostTime = rs.getString ("Post.postedAt");
                     }
@@ -810,15 +818,7 @@ public class API implements APIProvider {
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
-                if (topicId != currentTopicId) {
-                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
-                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
-
-                    currentTopicId = topicId;
-                    topicLikesCount = 0;
-                    postCount = 0;
-                }
-                if (rs.last ()) {
+                if (rs.isLast()) {
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("Topic.title");
                     topicCreatedAt =  rs.getString ("Topic.postedAt");
