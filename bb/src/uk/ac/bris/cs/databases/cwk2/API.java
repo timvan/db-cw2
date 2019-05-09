@@ -582,13 +582,14 @@ public class API implements APIProvider {
 
     @Override
     public Result<List<PersonView>> getLikers(int topicId) {
+
         // check topic exists
         Result topicResult = topicExists(topicId);
         if (!topicResult.isSuccess()){
             if (topicResult.isFatal()) return topicResult;
             return Result.failure ("getLikers: " + topicResult.getMessage());
         }
-        // TODO - Join instead Topic -> liketopic -> Person : remove query above
+
         String sql = "SELECT Person.name, Person.username, Person.stuId FROM Person" +
                 " LEFT JOIN LikeTopic" +
                 " ON Person.id = LikeTopic.personId" +
