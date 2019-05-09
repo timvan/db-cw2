@@ -461,7 +461,7 @@ public class API implements APIProvider {
     public Result likeTopic(String username, int topicId, boolean like) {
         if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
 
-        // check user exists
+        // check db if user exists
         Result usernameResult = usernameExists(username);
         if (!usernameResult.isSuccess()){
             if (usernameResult.isFatal()) return usernameResult;
@@ -469,34 +469,38 @@ public class API implements APIProvider {
         }
         int userId = (int) usernameResult.getValue();
 
-        // check topic exists
+        // check db if topic exists
         Result topicResult = topicExists(topicId);
         if (!topicResult.isSuccess()){
             if (topicResult.isFatal()) return topicResult;
             return Result.failure ("likeTopic: " + topicResult.getMessage());
         }
 
+        // check if like already exists in db
         String sql = "SELECT * FROM LikeTopic WHERE personId = ? AND topicId = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)){
             ps.setInt(1, userId);
             ps.setInt(2, topicId);
             ResultSet rs = ps.executeQuery();
-
-            if(rs.next()){
-                if(like) return Result.success();
+            // Return success like in db and action is like - no-op
+            // Return success if no like in db and action is not like - no-op
+            if(like){
+                if(rs.next()) return Result.success();
+            } else {
+                if(!rs.next()) return Result.success();
             }
+
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
 
         if(like) sql = "INSERT INTO LikeTopic (personId, topicId) VALUES (?, ?)";
         else sql = "DELETE FROM LikeTopic WHERE personId = ? AND topicId = ?";
-
         try (PreparedStatement ps = c.prepareStatement(sql)){
             ps.setInt(1, userId);
             ps.setInt(2, topicId);
 
-            ps.executeUpdate(); // TODO should we check the results have been made
+            if(ps.executeUpdate() != 1) throw new SQLException();
             c.commit();
             return Result.success();
 
@@ -514,7 +518,7 @@ public class API implements APIProvider {
     public Result likePost(String username, int topicId, int post, boolean like) {
         if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
 
-        // check user exists
+        // check db if user exists
         Result usernameResult = usernameExists(username);
         if (!usernameResult.isSuccess()){
             if (usernameResult.isFatal()) return usernameResult;
@@ -522,20 +526,19 @@ public class API implements APIProvider {
         }
         int userId = (int) usernameResult.getValue();
 
-        // check topic exists
+        // check db if topic exists
         Result topicResult = topicExists(topicId);
         if (!topicResult.isSuccess()){
             if (topicResult.isFatal()) return topicResult;
             return Result.failure ("createPost: " + topicResult.getMessage());
         }
 
-        // check post exists - get post id from topic's post
-        // raise error if post > number of post for topic
+        // check post exists and get post id from topic's post number
+        // post does not exist if post number > number of posts in topic
         String sql = "SELECT Post.id FROM Topic" +
                 " LEFT JOIN Post ON Post.topicId = Topic.id" +
                 " WHERE Topic.id = ?" +
                 " ORDER BY Post.id ASC";
-
         int postId;
         try (PreparedStatement ps = c.prepareStatement(sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)){
             ps.setInt(1, topicId);
@@ -550,14 +553,18 @@ public class API implements APIProvider {
             return Result.fatal(e.getMessage());
         }
 
-        // check if liked already...
+        // check if like already in db
         sql = "SELECT * FROM LikePost WHERE personId = ? AND postId = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)){
             ps.setInt(1, userId);
             ps.setInt(2, postId);
             ResultSet rs = ps.executeQuery();
-            if(rs.next()){
-                if(like) return Result.success();
+            // Return success like in db and action is like - no-op
+            // Return success if no like in db and action is not like - no-op
+            if(like){
+                if(rs.next()) return Result.success();
+            } else {
+                if(!rs.next()) return Result.success();
             }
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
@@ -569,10 +576,9 @@ public class API implements APIProvider {
             ps.setInt(1, userId);
             ps.setInt(2, postId);
 
-            ps.executeUpdate(); // TODO should we check the results have been made
+            if(ps.executeUpdate() != 1) throw new SQLException();
             c.commit();
             return Result.success();
-
         } catch (SQLException e) {
             try{
                 c.rollback();
