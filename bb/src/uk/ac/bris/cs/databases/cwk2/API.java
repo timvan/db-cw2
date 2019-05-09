@@ -633,7 +633,7 @@ public class API implements APIProvider {
     @Override
     public Result<TopicView> getTopic(int topicId) {
 
-        String sql = "SELECT Forum.*, Topic.title, Person.name, Person.username, Post.*, LikePost.id FROM Forum" +
+        String sql = "SELECT * FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
                 " LEFT JOIN Post" +
@@ -643,13 +643,12 @@ public class API implements APIProvider {
                 " LEFT JOIN LikePost" +
                 " ON Post.id = LikePost.postId" +
                 " WHERE Topic.id = ?" +
-                " ORDER BY Post.id";
+                " ORDER BY Post.id ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt (1, topicId);
             ResultSet rs = ps.executeQuery ();
             ArrayList<PostView> posts = new ArrayList<> ();
-
 
             if (rs.next ()) {
                 int forumId = rs.getInt("Forum.id");
@@ -741,9 +740,11 @@ public class API implements APIProvider {
             while (rs.next ()) {
                 if (rs.isFirst ()) {
                     topicLikes = rs.getInt ("countLikes");
-                    studentId = rs.getString ("stuId");
-                    name = rs.getString ("name");
-                    userId = rs.getInt ("id");
+                    if (topicLikes > 0) {
+                        studentId = rs.getString ("stuId");
+                        name = rs.getString ("name");
+                        userId = rs.getInt ("id");
+                    }
                 }
                 if (rs.isLast ()) {
                     postLikes = rs.getInt ("countLikes");
@@ -809,7 +810,7 @@ public class API implements APIProvider {
                     }
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("Topic.title");
-                    topicCreatedAt = "";
+                    topicCreatedAt =  rs.getString ("Topic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
