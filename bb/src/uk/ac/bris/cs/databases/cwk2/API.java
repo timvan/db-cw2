@@ -28,7 +28,6 @@ public class API implements APIProvider {
     @Override
     public Result<Map<String, String>> getUsers() {
 
-
         String sql = "SELECT username, name FROM Person";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ResultSet rs = ps.executeQuery ();
@@ -48,7 +47,7 @@ public class API implements APIProvider {
 
     @Override
     public Result<PersonView> getPersonView(String username) {
-        if (username == null || username.isEmpty ()) { return Result.failure ("getPersonView: Username cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { return Result.failure ("getPersonView: Username cannot be empty"); }
 
         String sql = "SELECT * FROM Person WHERE username = ?";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
@@ -70,11 +69,11 @@ public class API implements APIProvider {
 
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-        if (name == null || name.isEmpty ()) { return Result.failure ("addNewPerson: Name cannot be empty"); }
+        if (name == null || name.trim().isEmpty()) { return Result.failure ("addNewPerson: Name cannot be empty"); }
         if (name.length() > longStringLength) { return Result.failure("addNewPerson: Name too long"); }
-        if (username == null || username.isEmpty ()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { return Result.failure ("addNewPerson: Username cannot be empty"); }
         if (username.length() > shortStringLength) { return Result.failure("addNewPerson: Username too long");}
-        if (studentId != null && studentId.isEmpty ()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
+        if (studentId != null && studentId.trim().isEmpty()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
         if (studentId != null && studentId.length() > shortStringLength) { return Result.failure("addNewPerson: Student ID too long");}
 
         Result usernameResult = usernameExists(username);
@@ -130,8 +129,8 @@ public class API implements APIProvider {
 
     @Override
     public Result createForum(String title) {
-        if (title == null || title.isEmpty ()) return Result.failure ("createForum: Title cannot be empty");
-        if (title.length() > longStringLength) return Result.failure("createForum: Title exceeds 100 characters");
+        if (title == null || title.trim().isEmpty()) return Result.failure ("createForum: Title cannot be empty");
+        if (title.length() > longStringLength) return Result.failure("createForum: Title too long");
 
         // check forum title does not already exist
         Result forumExists = forumTitleExists (title);
@@ -329,8 +328,8 @@ public class API implements APIProvider {
     @Override
     public Result createPost(int topicId, String username, String text) {
         // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
-        if (text == null || text.isEmpty()) { Result.failure("createPost: Text cannot be empty"); }
-        if (username == null || username.isEmpty()) { Result.failure("createPost: Username cannot be empty"); }
+        if (text == null || text.trim().isEmpty()) { Result.failure("createPost: Text cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { Result.failure("createPost: Username cannot be empty"); }
         if (username != null && username.length() > shortStringLength) { Result.failure("createPost: Username too long"); }
 
         // check user exists
@@ -374,11 +373,11 @@ public class API implements APIProvider {
     @Override
     public Result createTopic(int forumId, String username, String title, String text) {
         // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
-        if (username == null || username.isEmpty()) { Result.failure("createTopic: Username cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { Result.failure("createTopic: Username cannot be empty"); }
         if (username != null && username.length() > shortStringLength) { Result.failure("createTopic: username too long"); }
-        if (title == null || title.isEmpty()) { Result.failure("createTopic: Title cannot be empty"); }
+        if (title == null || title.trim().isEmpty()) { Result.failure("createTopic: Title cannot be empty"); }
         if (title != null && title.length() > longStringLength) { Result.failure("createTopic: Title too long"); }
-        if (text == null || text.isEmpty()) { Result.failure("createTopic: Text cannot be empty"); }
+        if (text == null || text.trim().isEmpty()) { Result.failure("createTopic: Text cannot be empty"); }
 
         // TODO should topic titles be unique?? atm it's not no evidence it should be in API provider
 
@@ -468,7 +467,7 @@ public class API implements APIProvider {
 
     @Override
     public Result likeTopic(String username, int topicId, boolean like) {
-        if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
 
         // check db if user exists
         Result usernameResult = usernameExists(username);
@@ -525,7 +524,7 @@ public class API implements APIProvider {
 
     @Override
     public Result likePost(String username, int topicId, int post, boolean like) {
-        if (username == null || username.isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
+        if (username == null || username.trim().isEmpty()) { Result.failure("likeTopic: Username cannot be empty"); }
 
         // check db if user exists
         Result usernameResult = usernameExists(username);
