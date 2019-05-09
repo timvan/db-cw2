@@ -49,7 +49,7 @@ public class API implements APIProvider {
     public Result<PersonView> getPersonView(String username) {
         if (username == null || username.trim().isEmpty()) { return Result.failure ("getPersonView: Username cannot be empty"); }
 
-        String sql = "SELECT * FROM Person WHERE username = ?";
+        String sql = "SELECT name, stuId FROM Person WHERE username = ?";
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setString (1, username);
             ResultSet rs = ps.executeQuery ();
@@ -75,6 +75,8 @@ public class API implements APIProvider {
         if (username.length() > shortStringLength) { return Result.failure("addNewPerson: Username too long");}
         if (studentId != null && studentId.trim().isEmpty()) { return Result.failure ("addNewPerson: Student Id cannot be empty"); }
         if (studentId != null && studentId.length() > shortStringLength) { return Result.failure("addNewPerson: Student ID too long");}
+        name = name.trim();
+        username = username.trim();
 
         Result usernameResult = usernameExists(username);
         if (usernameResult.isSuccess()) return Result.failure ("addNewPerson: username already exist");
@@ -606,7 +608,7 @@ public class API implements APIProvider {
             return Result.failure ("getLikers: " + topicResult.getMessage());
         }
         // TODO - Join instead Topic -> liketopic -> Person : remove query above
-        String sql = "SELECT * FROM Person" +
+        String sql = "SELECT Person.name, Person.username, Person.stuId FROM Person" +
                 " LEFT JOIN LikeTopic" +
                 " ON Person.id = LikeTopic.personId" +
                 " WHERE LikeTopic.topicId = ?" +
@@ -632,7 +634,7 @@ public class API implements APIProvider {
     @Override
     public Result<TopicView> getTopic(int topicId) {
 
-        String sql = "SELECT * FROM Forum" +
+        String sql = "SELECT Forum.id, Forum.title, Topic.title, Post.content, Post.id, Post.postedAt, Person.name, Person.username, LikePost.id FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
                 " LEFT JOIN Post" +
@@ -755,7 +757,7 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
-        String sql = "SELECT * FROM Forum" +
+        String sql = "SELECT Forum.id, Topic.id, Topic.title, Topic.postedAt, Post.id, Post.content, Post.postedAt, Person.name, Person.username FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
                 " JOIN Post" +
