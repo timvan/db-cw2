@@ -704,17 +704,21 @@ public class API implements APIProvider {
         // Params needed: String name, String username, String studentId,
         //            int topicLikes, int postLikes, List<TopicSummaryView> liked
 
-        String countLikesSql = "SELECT COUNT(*) as countLikes, Person.username, Person.name, Person.stuId, Person.id" +
-        " FROM Topic JOIN Person" +
-        " ON Topic.authorId = Person.id JOIN LikeTopic" +
-        " ON Topic.id = LikeTopic.topicId WHERE Person.username = ?" +
+        String countLikesSql = "SELECT COUNT(LikeTopic.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
+        "        (SELECT * FROM Person" +
+        "                WHERE username = ?) AS T" +
+        " LEFT JOIN Topic" +
+        " ON Topic.authorID = T.id" +
+        " LEFT JOIN LikeTopic" +
+        " ON Topic.id = LikeTopic.topicId" +
         " UNION" +
-        " SELECT COUNT(*) as countLikes, Person.username, Person.name, Person.stuId, Person.id" +
-        " FROM Post JOIN Person" +
-        " ON Post.authorId = Person.id" +
-        " JOIN LikePost" +
-        " ON Post.id = LikePost.postId" +
-        " WHERE Person.username = ?";
+        " SELECT COUNT(LikePost.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
+        "        (SELECT * FROM Person" +
+                        " WHERE username = ?) AS T" +
+        " LEFT JOIN Post" +
+        " ON Post.authorID = T.id" +
+        " LEFT JOIN LikePost" +
+        " ON Post.id = LikePost.postId";
 
         int userId = 0;
         String name = "";
@@ -731,11 +735,12 @@ public class API implements APIProvider {
             while (rs.next ()) {
                 if (rs.isFirst ()) {
                     topicLikes = rs.getInt ("countLikes");
-                    if (topicLikes > 0) {
+                    if (rs.getString ("stuId") != null) {
                         studentId = rs.getString ("stuId");
-                        name = rs.getString ("name");
-                        userId = rs.getInt ("id");
                     }
+                    name = rs.getString ("name");
+                    userId = rs.getInt ("id");
+
                 }
                 if (rs.isLast ()) {
                     postLikes = rs.getInt ("countLikes");
