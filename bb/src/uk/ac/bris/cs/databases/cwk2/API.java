@@ -633,7 +633,8 @@ public class API implements APIProvider {
                 " ON Post.authorId = Person.id" +
                 " LEFT JOIN LikePost" +
                 " ON Post.id = LikePost.postId" +
-                " WHERE Topic.id = ?";
+                " WHERE Topic.id = ?" +
+                " ORDER BY Post.id ASC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt (1, topicId);
@@ -675,6 +676,9 @@ public class API implements APIProvider {
                         authorUsername = rs.getString ("Person.username");
                         postText = rs.getString ("Post.content");
                         postPostedAt = rs.getString ("Post.postedAt");
+                        if (rs.getInt ("LikePost.id") > 0) {
+                            postLikes++;
+                        }
                         posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
                     }
                 } while (rs.next ());
@@ -727,9 +731,11 @@ public class API implements APIProvider {
             while (rs.next ()) {
                 if (rs.isFirst ()) {
                     topicLikes = rs.getInt ("countLikes");
-                    studentId = rs.getString ("stuId");
-                    name = rs.getString ("name");
-                    userId = rs.getInt ("id");
+                    if (topicLikes > 0) {
+                        studentId = rs.getString ("stuId");
+                        name = rs.getString ("name");
+                        userId = rs.getInt ("id");
+                    }
                 }
                 if (rs.isLast ()) {
                     postLikes = rs.getInt ("countLikes");
@@ -795,7 +801,7 @@ public class API implements APIProvider {
                     }
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("Topic.title");
-                    topicCreatedAt = "";
+                    topicCreatedAt =  rs.getString ("Topic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
