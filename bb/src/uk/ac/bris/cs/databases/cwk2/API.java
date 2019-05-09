@@ -90,12 +90,9 @@ public class API implements APIProvider {
             ps.setString (2, username);
             ps.setString (3, studentId);
 
-            // TODO - here we check that the User has been created and throw Error if not???
             if(ps.executeUpdate () != 1) throw new SQLException();
-
             c.commit ();
             return Result.success ();
-
         } catch (SQLException e) {
             try {
                 c.rollback ();
@@ -143,12 +140,9 @@ public class API implements APIProvider {
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setString (1, title);
 
-            // TODO - here we check that the Forum has been created and throw Error if not???
             if(ps.executeUpdate () != 1) throw new SQLException();
-
             c.commit();
             return Result.success ();
-
         } catch (SQLException e) {
             try {
                 c.rollback();
@@ -230,8 +224,6 @@ public class API implements APIProvider {
 
     @Override
     public Result<SimpleTopicView> getSimpleTopic(int topicId) {
-
-        // TODO - Question: NULL POINTER ERROR: should we check for null posts or do we assume that Topics all have at least one post?
 
         String sql = "SELECT Post.id, Post.content, Post.postedAt, Person.name, Topic.title" +
                 " FROM Topic" +
@@ -329,7 +321,6 @@ public class API implements APIProvider {
 
     @Override
     public Result createPost(int topicId, String username, String text) {
-        // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
         if (text == null || text.trim().isEmpty()) { Result.failure("createPost: Text cannot be empty"); }
         if (username == null || username.trim().isEmpty()) { Result.failure("createPost: Username cannot be empty"); }
         if (username != null && username.length() > shortStringLength) { Result.failure("createPost: Username too long"); }
@@ -355,11 +346,9 @@ public class API implements APIProvider {
             ps.setString (2, text);
             ps.setInt (3, topicId);
 
-            // TODO - here we check that the Topic has been created and throw Error if not???
             if(ps.executeUpdate () != 1) throw new SQLException();
-
             c.commit();
-
+            return Result.success ();
         } catch (SQLException e) {
             try {
                 c.rollback();
@@ -368,20 +357,15 @@ public class API implements APIProvider {
                 return Result.fatal(f.getMessage());
             }
         }
-
-        return Result.success ();
     }
 
     @Override
     public Result createTopic(int forumId, String username, String title, String text) {
-        // TODO handler methods are checking text is null of equals("") therefore for DRY should this be empty
         if (username == null || username.trim().isEmpty()) { Result.failure("createTopic: Username cannot be empty"); }
         if (username != null && username.length() > shortStringLength) { Result.failure("createTopic: username too long"); }
         if (title == null || title.trim().isEmpty()) { Result.failure("createTopic: Title cannot be empty"); }
         if (title != null && title.length() > longStringLength) { Result.failure("createTopic: Title too long"); }
         if (text == null || text.trim().isEmpty()) { Result.failure("createTopic: Text cannot be empty"); }
-
-        // TODO should topic titles be unique?? atm it's not no evidence it should be in API provider
 
         // check user exists
         Result usernameResult = usernameExists(username);
@@ -389,7 +373,6 @@ public class API implements APIProvider {
             if (usernameResult.isFatal()) return usernameResult;
             return Result.failure ("createTopic: " + usernameResult.getMessage());
         }
-
         int userId = (int) usernameResult.getValue();
 
         // check forum exists
@@ -454,11 +437,10 @@ public class API implements APIProvider {
 
             int postCount = rs.getInt ("c");
 
-            // TODO here we assumed that every Topic has one or more posts... therefore a count of zero means the topicId does not exist
+            // Topic must have 1 or more posts
             if(postCount == 0) return Result.failure("createPost: topic does not exist");
 
             return Result.success (postCount);
-
         } catch (SQLException e) {
             return Result.failure("createPost: failed to count posts");
         }
@@ -499,7 +481,6 @@ public class API implements APIProvider {
             } else {
                 if(!rs.next()) return Result.success();
             }
-
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
