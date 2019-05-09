@@ -56,6 +56,5 @@ CREATE TABLE LikePost (
   , UNIQUE  (postId, personId)
 );
 
-SELECT COUNT(*) as topicLikes, Person.username, Person.name, Person.stuId FROM Topic JOIN Person ON Topic.authorId = Person.id JOIN LikeTopic ON Topic.id = LikeTopic.topicId  WHERE Person.username = 'stdusr1';
-
+SELECT * FROM Forum JOIN Topic ON Forum.id = Topic.forumId LEFT JOIN Post ON Topic.id = Post.topicId LEFT JOIN Person ON Post.authorId = Person.id LEFT JOIN LikePost ON Post.id = LikePost.postId WHERE Topic.id = 4;
 
