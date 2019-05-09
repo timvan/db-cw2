@@ -709,8 +709,6 @@ public class API implements APIProvider {
 
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
-        // Params needed: String name, String username, String studentId,
-        //            int topicLikes, int postLikes, List<TopicSummaryView> liked
 
         String countLikesSql = "SELECT COUNT(LikeTopic.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
         "        (SELECT * FROM Person" +
@@ -757,8 +755,6 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
-        // Adding to List<TopicSummaryView> liked: topics the user liked
-
         String sql = "SELECT * FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
@@ -779,7 +775,6 @@ public class API implements APIProvider {
             int topicLikesCount = 0;
             int currentPostId = -1;
             int currentTopicId = -1;
-
             int forumId = -1;
             String topicCreatedAt = "";
             String lastPostTime = "";
@@ -789,8 +784,6 @@ public class API implements APIProvider {
             String postCreatorUsername = "";
 
             while (rs.next ()) {
-
-                // keep track of cursor in db
                 int topicId = rs.getInt ("Topic.id");
                 int postId = rs.getInt("Post.id");
                 if (rs.isFirst ()) {
@@ -798,16 +791,13 @@ public class API implements APIProvider {
                     currentPostId = postId;
                 }
                 if (topicId == currentTopicId) {
-                    // get latest post details (first entry of each topic)
                     if (postCount == 0) {
                         lastPostName = rs.getString ("Post.content");
                         lastPostTime = rs.getString ("Post.postedAt");
                     }
-                    // count topic likes
                     if (postId == currentPostId) {
                         topicLikesCount++;
                     }
-                    // count amount of post
                     else {
                         currentPostId = postId;
                         postCount++;
@@ -818,30 +808,16 @@ public class API implements APIProvider {
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
-
                 else {
-                    // int topicId, int forumId, String title, int postCount,
-                    //            String created, String lastPostTime, String lastPostName, int likes,
-                    //            String creatorName, String creatorUserName
+                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
+                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
 
-                    topicLiked.add (new TopicSummaryView (
-                                                            topicId,
-                                                            forumId,
-                                                            topicTitle,
-                                                            postCount,
-                                                            topicCreatedAt,
-                                                            lastPostTime,
-                                                            lastPostName,
-                                                            topicLikesCount,
-                                                            postCreatorName,
-                                                            postCreatorUsername));
                     currentTopicId = topicId;
                     topicLikesCount = 0;
                     postCount = 0;
                 }
             }
             return Result.success (new AdvancedPersonView (name, username, studentId, topicLikes, postLikes, topicLiked));
-
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
