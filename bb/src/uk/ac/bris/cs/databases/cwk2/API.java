@@ -757,17 +757,21 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
-        String sql = "SELECT Forum.id, Topic.id, Topic.title, Topic.postedAt, Post.id, Post.content, Post.postedAt, Person.name, Person.username FROM Forum" +
-                " JOIN Topic" +
-                " ON Forum.id = Topic.forumId" +
-                " JOIN Post" +
-                " ON Post.topicId = Topic.id" +
-                " JOIN Person" +
-                " ON Post.authorId = Person.id" +
-                " JOIN LikeTopic" +
-                " ON Topic.id = LikeTopic.topicId" +
-                " WHERE LikeTopic.personId = ?" +
-                " ORDER BY Forum.id ASC, Topic.id ASC, Post.postedAt DESC";
+        String sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title,  Post.content, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
+        " FROM Forum" +
+        " JOIN (" +
+        "        SELECT Topic.id, Topic.title, Topic.forumId, Topic.postedAt FROM Topic" +
+        "        JOIN LikeTopic" +
+        "        ON Topic.id = LikeTopic.topicId" +
+        "        WHERE LikeTopic.personId = 1" +
+        ") AS FilTopic" +
+        " ON Forum.id = FilTopic.forumId" +
+        " JOIN Post" +
+        " ON Post.topicId = FilTopic.id" +
+        " JOIN Person" +
+        " ON Post.authorId = Person.id" +
+        " JOIN LikeTopic ON FilTopic.id = LikeTopic.topicId" +
+        " ORDER BY Forum.id ASC, FilTopic.id ASC, Post.postedAt DESC";
 
         try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt(1, userId);
@@ -786,7 +790,7 @@ public class API implements APIProvider {
             String postCreatorUsername = "";
 
             while (rs.next ()) {
-                int topicId = rs.getInt ("Topic.id");
+                int topicId = rs.getInt ("FilTopic.id");
                 int postId = rs.getInt("Post.id");
                 if (rs.isFirst ()) {
                     currentTopicId = topicId;
@@ -794,7 +798,7 @@ public class API implements APIProvider {
                 }
                 if (topicId != currentTopicId) {
                     topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
-                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
+                            lastPostTime, lastPostName, topicLikesCount / postCount, postCreatorName, postCreatorUsername));
 
                     currentTopicId = topicId;
                     topicLikesCount = 1;
@@ -813,15 +817,15 @@ public class API implements APIProvider {
                         postCount++;
                     }
                     forumId = rs.getInt ("Forum.id");
-                    topicTitle = rs.getString ("Topic.title");
-                    topicCreatedAt =  rs.getString ("Topic.postedAt");
+                    topicTitle = rs.getString ("FilTopic.title");
+                    topicCreatedAt =  rs.getString ("FilTopic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
                 if (rs.isLast()) {
                     forumId = rs.getInt ("Forum.id");
-                    topicTitle = rs.getString ("Topic.title");
-                    topicCreatedAt =  rs.getString ("Topic.postedAt");
+                    topicTitle = rs.getString ("FilTopic.title");
+                    topicCreatedAt =  rs.getString ("FilTopic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                     topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
