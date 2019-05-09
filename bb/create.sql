@@ -31,8 +31,8 @@ CREATE TABLE Topic (
 CREATE TABLE Post (
   id INTEGER PRIMARY KEY AUTO_INCREMENT
   , postedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  , authorId INTEGER NOT NULL
   , content TEXT NOT NULL
+  , authorId INTEGER NOT NULL
   , topicId INTEGER NOT NULL
   , FOREIGN KEY (authorId) REFERENCES Person(id)
   , FOREIGN KEY (topicId) REFERENCES Topic(id)
@@ -55,6 +55,3 @@ CREATE TABLE LikePost (
   , FOREIGN KEY (postId) REFERENCES Post(id)
   , UNIQUE  (postId, personId)
 );
-
-SELECT * FROM Forum JOIN Topic ON Forum.id = Topic.forumId LEFT JOIN Post ON Topic.id = Post.topicId LEFT JOIN Person ON Post.authorId = Person.id LEFT JOIN LikePost ON Post.id = LikePost.postId WHERE Topic.id = 4;
-

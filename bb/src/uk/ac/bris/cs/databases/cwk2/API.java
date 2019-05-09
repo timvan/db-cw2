@@ -700,32 +700,132 @@ public class API implements APIProvider {
         // Params needed: String name, String username, String studentId,
         //            int topicLikes, int postLikes, List<TopicSummaryView> liked
 
+        String countLikesSql = "SELECT COUNT(*) as countLikes, Person.username, Person.name, Person.stuId, Person.id" +
+        " FROM Topic JOIN Person" +
+        " ON Topic.authorId = Person.id JOIN LikeTopic" +
+        " ON Topic.id = LikeTopic.topicId WHERE Person.username = ?" +
+        " UNION" +
+        " SELECT COUNT(*) as countLikes, Person.username, Person.name, Person.stuId, Person.id" +
+        " FROM Post JOIN Person" +
+        " ON Post.authorId = Person.id" +
+        " JOIN LikePost" +
+        " ON Post.id = LikePost.postId" +
+        " WHERE Person.username = ?";
 
-        String topicLikesSql = "SELECT COUNT(*) as topicLikes, Person.username, Person.name, Person.stuId " +
-                " FROM Topic" +
-                " JOIN Person" +
-                " ON Topic.authorId = Person.id" +
-                " JOIN LikeTopic" +
-                " ON Topic.id = LikeTopic.topicId" +
-                " WHERE Person.username = ?" ;
+        int userId = 0;
+        String name = "";
+        String studentId = "";
+        int topicLikes = 0;
+        int postLikes = 0;
+        List<TopicSummaryView> topicLiked = new ArrayList<> ();
 
-        String postLikesSql = "SELECT COUNT(*) as postLike FROM Post" +
+        try (PreparedStatement ps = c.prepareStatement (countLikesSql)) {
+            ps.setString (1, username);
+            ps.setString (2, username);
+            ResultSet rs = ps.executeQuery ();
+
+            while (rs.next ()) {
+                if (rs.isFirst ()) {
+                    topicLikes = rs.getInt ("countLikes");
+                    studentId = rs.getString ("stuId");
+                    name = rs.getString ("name");
+                    userId = rs.getInt ("id");
+                }
+                if (rs.isLast ()) {
+                    postLikes = rs.getInt ("countLikes");
+                }
+            }
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage ());
+        }
+        // Adding to List<TopicSummaryView> liked: topics the user liked
+
+        String sql = "SELECT * FROM Forum" +
+                " JOIN Topic" +
+                " ON Forum.id = Topic.forumId" +
+                " JOIN Post" +
+                " ON Post.topicId = Topic.id" +
                 " JOIN Person" +
                 " ON Post.authorId = Person.id" +
-                " JOIN LikePost" +
-                " ON Post.id = LikePost.postId" +
-                " WHERE Person.username = ?" ;
+                " JOIN LikeTopic" +
+                " ON Topic.id = LikeTopic.topicId" +
+                " WHERE LikeTopic.personId = ?" +
+                " ORDER BY Forum.id ASC, Topic.id ASC, Post.postedAt DESC";
 
-        // Required for:  List<TopicSummaryView> liked
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery ();
 
-        // int topicId, int forumId, String title, int postCount,
-        //            String created, String lastPostTime, String lastPostName, int likes,
-        //            String creatorName, String creatorUserName
+            int postCount = 0;
+            int topicLikesCount = 0;
+            int currentPostId = -1;
+            int currentTopicId = -1;
 
-        String sql = "";
+            int forumId = -1;
+            String topicCreatedAt = "";
+            String lastPostTime = "";
+            String lastPostName = "";
+            String topicTitle = "";
+            String postCreatorName = "";
+            String postCreatorUsername = "";
 
+            while (rs.next ()) {
 
-        throw new UnsupportedOperationException("Not supported yet.");
+                // keep track of cursor in db
+                int topicId = rs.getInt ("Topic.id");
+                int postId = rs.getInt("Post.id");
+                if (rs.isFirst ()) {
+                    currentTopicId = topicId;
+                    currentPostId = postId;
+                }
+                if (topicId == currentTopicId) {
+                    // get latest post details (first entry of each topic)
+                    if (postCount == 0) {
+                        lastPostName = rs.getString ("Post.content");
+                        lastPostTime = rs.getString ("Post.postedAt");
+                    }
+                    // count topic likes
+                    if (postId == currentPostId) {
+                        topicLikesCount++;
+                    }
+                    // count amount of post
+                    else {
+                        currentPostId = postId;
+                        postCount++;
+                    }
+                    forumId = rs.getInt ("Forum.id");
+                    topicTitle = rs.getString ("Topic.title");
+                    topicCreatedAt = "";
+                    postCreatorName = rs.getString ("Person.name");
+                    postCreatorUsername = rs.getString ("Person.username");
+                }
+
+                else {
+                    // int topicId, int forumId, String title, int postCount,
+                    //            String created, String lastPostTime, String lastPostName, int likes,
+                    //            String creatorName, String creatorUserName
+
+                    topicLiked.add (new TopicSummaryView (
+                                                            topicId,
+                                                            forumId,
+                                                            topicTitle,
+                                                            postCount,
+                                                            topicCreatedAt,
+                                                            lastPostTime,
+                                                            lastPostName,
+                                                            topicLikesCount,
+                                                            postCreatorName,
+                                                            postCreatorUsername));
+                    currentTopicId = topicId;
+                    topicLikesCount = 0;
+                    postCount = 0;
+                }
+            }
+            return Result.success (new AdvancedPersonView (name, username, studentId, topicLikes, postLikes, topicLiked));
+
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage ());
+        }
     }
 
     @Override
