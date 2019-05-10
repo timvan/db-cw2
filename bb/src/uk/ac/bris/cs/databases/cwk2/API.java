@@ -752,7 +752,6 @@ public class API implements APIProvider {
             ResultSet rs = ps.executeQuery ();
 
             int postCount = 1;
-            int topicCount = 0;
             int topicLikesCount = 0;
             int currentPostId = -1;
             int currentTopicId = -1;
@@ -781,7 +780,6 @@ public class API implements APIProvider {
                     currentTopicId = topicId;
                     topicLikesCount = 1;
                     postCount = 0;
-                    topicCount++;
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("FilTopic.title");
                     topicCreatedAt =  rs.getString ("FilTopic.postedAt");
@@ -811,7 +809,6 @@ public class API implements APIProvider {
                     if (postCount == 0) {
                         postCount++;
                     }
-
                     topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, topicLikesCount / postCount , postCreatorName, postCreatorUsername));
                 }
