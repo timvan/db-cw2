@@ -225,7 +225,7 @@ public class API implements APIProvider {
     @Override
     public Result<SimpleTopicView> getSimpleTopic(int topicId) {
 
-        String sql = "SELECT Post.id, Post.content, Post.postedAt, Person.name, Topic.title" +
+        String sql = "SELECT Post.content, Post.postedAt, Person.name, Topic.title" +
                 " FROM Topic" +
                 " LEFT JOIN Post" +
                 " ON Topic.id = Post.topicId" +
@@ -243,7 +243,6 @@ public class API implements APIProvider {
             if (!rs.next()) return Result.failure("getSimpleTopic: No topic with this id");
             String topicTitle = rs.getString("Topic.title");
             do {
-                int postId = rs.getInt ("Post.id");
                 String personName = rs.getString("Person.name");
                 String postContent = rs.getString("Post.content");
                 String postPostedAt = rs.getString("Post.postedAt");
@@ -666,7 +665,6 @@ public class API implements APIProvider {
             if(!hasResults){
                 return Result.failure ("getTopic: Topic doesn't exist");
             }
-
             return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
 
         } catch (SQLException e) {
@@ -684,6 +682,7 @@ public class API implements APIProvider {
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
 
+        // Fetch amount of likes for both post and topic this user created
         String countLikesSql = "SELECT COUNT(LikeTopic.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
         "        (SELECT * FROM Person" +
         "                WHERE username = ?) AS T" +
@@ -731,6 +730,8 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
+
+        // Fetch all topics liked by the user
         String sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
         " FROM Forum" +
         " JOIN (" +
@@ -859,7 +860,7 @@ public class API implements APIProvider {
      * @param forumId
      * @return Result.success(Forum.title) if exists
      * Result.failure if does not exist
-     * Result.fatal if SQLException occured
+     * Result.fatal if SQLException occurred
      */
     private Result<String> forumExists(int forumId) {
         String sql = "SELECT id, title" +
@@ -883,7 +884,7 @@ public class API implements APIProvider {
      * @param title
      * @return Result.success(Forum.id) if exists
      * Result.failure if does not exist
-     * Result.fatal if SQLException occured
+     * Result.fatal if SQLException occurred
      */
     private Result<Integer> forumExists(String title) {
         String sql = "SELECT id" +
@@ -907,7 +908,7 @@ public class API implements APIProvider {
      * @param topicId
      * @return Result.success(Topic.title) if exists
      * Result.failure if does not exist
-     * Result.fatal if SQLException occured
+     * Result.fatal if SQLException occurred
      */
     private Result<String> topicExists(int topicId) {
         String sql = "SELECT id, title" +
@@ -932,10 +933,9 @@ public class API implements APIProvider {
      * @param forumId
      * @param topicTitle
      * @return SimpleTopicSummaryView
-     * If tpoicTitle is null then returns null
+     * If topicTitle is null then returns null
      */
     private SimpleTopicSummaryView newSimpleTopicSummaryView (int topicId, int forumId, String topicTitle) {
-        SimpleTopicSummaryView lastTopic;
         if (topicTitle == null) {
             return null;
         }
