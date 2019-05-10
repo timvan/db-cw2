@@ -729,7 +729,7 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
-        String sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title,  Post.content, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
+        String sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
         " FROM Forum" +
         " JOIN (" +
         "        SELECT Topic.id, Topic.title, Topic.forumId, Topic.postedAt FROM Topic" +
@@ -778,12 +778,10 @@ public class API implements APIProvider {
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("FilTopic.title");
                     topicCreatedAt =  rs.getString ("FilTopic.postedAt");
-                    postCreatorName = rs.getString ("Person.name");
-                    postCreatorUsername = rs.getString ("Person.username");
                 }
                 else if (topicId == currentTopicId) {
                     if (postCount == 1) {
-                        lastPostName = rs.getString ("Post.content");
+                        lastPostName = rs.getString ("Person.name");
                         lastPostTime = rs.getString ("Post.postedAt");
                     }
                     if (postId != currentPostId) {
@@ -802,9 +800,11 @@ public class API implements APIProvider {
                     topicCreatedAt =  rs.getString ("FilTopic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
-                    if (topicLikesCount == 1) {
+
+                    if (!rs.isFirst () && (topicLikesCount/postCount) > 1) {
                         postCount++;
                     }
+
                     topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, topicLikesCount / postCount , postCreatorName, postCreatorUsername));
                 }
