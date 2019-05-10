@@ -759,8 +759,8 @@ public class API implements APIProvider {
             ps.setInt(1, userId);
             ResultSet rs = ps.executeQuery ();
 
-            int postCount = 1;
-            int topicLikesCount = 1;
+            int postCount = 0;
+            int topicLikesCount = 0;
             int currentPostId = -1;
             int currentTopicId = -1;
             int forumId = -1;
@@ -779,15 +779,23 @@ public class API implements APIProvider {
                     currentPostId = postId;
                 }
                 if (topicId != currentTopicId) {
-                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
-                            lastPostTime, lastPostName, topicLikesCount / postCount, postCreatorName, postCreatorUsername));
+
+                    // topicId, int forumId, String title, int postCount,
+                    //            String created, String lastPostTime, String lastPostName, int likes,
+                    //            String creatorName, String creatorUserName
+
+                    if (topicLikesCount == 1) {
+                        postCount++;
+                    }
+                    topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
+                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
 
                     currentTopicId = topicId;
-                    topicLikesCount = 1;
-                    postCount = 1;
+                    topicLikesCount = 0;
+                    postCount = 0;
                 }
                 else if (topicId == currentTopicId) {
-                    if (postCount == 1) {
+                    if (postCount == 0) {
                         lastPostName = rs.getString ("Post.content");
                         lastPostTime = rs.getString ("Post.postedAt");
                     }
@@ -810,8 +818,8 @@ public class API implements APIProvider {
                     topicCreatedAt =  rs.getString ("FilTopic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
-                    topicLiked.add (new TopicSummaryView (topicId, forumId, topicTitle, postCount, topicCreatedAt,
-                            lastPostTime, lastPostName, topicLikesCount, postCreatorName, postCreatorUsername));
+                    topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
+                            lastPostTime, lastPostName, topicLikesCount + 1, postCreatorName, postCreatorUsername));
                 }
             }
             return Result.success (new AdvancedPersonView (name, username, studentId, topicLikes, postLikes, topicLiked));
