@@ -616,7 +616,10 @@ public class API implements APIProvider {
     @Override
     public Result<TopicView> getTopic(int topicId) {
 
-        String sql = "SELECT Forum.id, Forum.title, Topic.title, Post.content, Post.id, Post.postedAt, Person.name, Person.username, LikePost.id FROM Forum" +
+        String sql = "SELECT Forum.id, Forum.title, Topic.title, Post.content," +
+                " Post.id, Post.postedAt, Person.name, Person.username," +
+                " LikePost.id, Count(LikePost.id) AS LikePostCount" +
+                " FROM Forum" +
                 " JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
                 " LEFT JOIN Post" +
@@ -626,58 +629,43 @@ public class API implements APIProvider {
                 " LEFT JOIN LikePost" +
                 " ON Post.id = LikePost.postId" +
                 " WHERE Topic.id = ?" +
+                " GROUP BY Post.id" +
                 " ORDER BY Post.id ASC";
 
-        try (PreparedStatement ps = c.prepareStatement (sql)) {
+        try (PreparedStatement ps = c.prepareStatement (sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
             ps.setInt (1, topicId);
             ResultSet rs = ps.executeQuery ();
-            ArrayList<PostView> posts = new ArrayList<> ();
 
-            if (rs.next ()) {
-                int forumId = rs.getInt("Forum.id");
-                String forumName = rs.getString ("Forum.title");
-                String topicTitle = rs.getString ("Topic.title");
+
+            // check if there are any results returned
+            if(!rs.next()){
+                return Result.failure ("getTopic: Topic doesn't exist");
+            }
+
+            // here we check that each Topic has 1 or more posts
+            if(rs.getInt("Post.id") == 0){
+                return Result.fatal("getTopic: Topic exists with no post");
+            }
+
+            int forumId = rs.getInt("Forum.id");
+            String forumName = rs.getString ("Forum.title");
+            String topicTitle = rs.getString ("Topic.title");
+
+            rs.absolute(0);
+            ArrayList<PostView> posts = new ArrayList<> ();
+            int postNumber = 1;
+            while(rs.next()){
+
                 String authorName = rs.getString ("Person.name");
                 String authorUsername = rs.getString ("Person.username");
                 String postText = rs.getString ("Post.content");
                 String postPostedAt = rs.getString ("Post.postedAt");
+                int postLikes = rs.getInt("LikePostCount");
 
-                int currentPostId = rs.getInt ("Post.id");
-                int postNumber = 1;
-                int postLikes = 0;
-
-                do  {
-                    int postId = rs.getInt ("Post.id");
-                    if (postId != currentPostId) {
-                        posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
-                        currentPostId = postId;
-                        postNumber++;
-                        postLikes = 0;
-                    }
-                    else if (postId == currentPostId) {
-                        authorName = rs.getString ("Person.name");
-                        authorUsername = rs.getString ("Person.username");
-                        postText = rs.getString ("Post.content");
-                        postPostedAt = rs.getString ("Post.postedAt");
-                        if (rs.getInt ("LikePost.id") > 0) {
-                            postLikes++;
-                        }
-                    }
-                    if (rs.isLast ()) {
-                        authorName = rs.getString ("Person.name");
-                        authorUsername = rs.getString ("Person.username");
-                        postText = rs.getString ("Post.content");
-                        postPostedAt = rs.getString ("Post.postedAt");
-                        if (rs.getInt ("LikePost.id") > 0) {
-                            postLikes++;
-                        }
-                        posts.add (new PostView (forumId, topicId, postNumber, authorName, authorUsername, postText, postPostedAt, postLikes));
-                    }
-                } while (rs.next ());
-
-                return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
+                posts.add(new PostView (forumId, topicId, postNumber++, authorName, authorUsername, postText, postPostedAt, postLikes));
             }
-            return Result.failure ("getTopic: Topic doesn't exist");
+
+            return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
 
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
