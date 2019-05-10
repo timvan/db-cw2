@@ -773,6 +773,9 @@ public class API implements APIProvider {
                     currentPostId = postId;
                 }
                 if (topicId != currentTopicId) {
+                    if (postCount == 0) {
+                        postCount++;
+                    }
                     topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, (topicLikesCount -1) / postCount , postCreatorName, postCreatorUsername));
                     currentTopicId = topicId;
