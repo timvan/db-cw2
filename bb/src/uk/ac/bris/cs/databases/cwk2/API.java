@@ -805,7 +805,9 @@ public class API implements APIProvider {
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
 
-
+                    if (postCount == 0) {
+                        postCount++;
+                    }
 
                     topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, topicLikesCount / postCount , postCreatorName, postCreatorUsername));
