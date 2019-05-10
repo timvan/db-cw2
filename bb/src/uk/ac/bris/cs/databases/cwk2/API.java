@@ -733,7 +733,7 @@ public class API implements APIProvider {
         "        SELECT Topic.id, Topic.title, Topic.forumId, Topic.postedAt FROM Topic" +
         "        JOIN LikeTopic" +
         "        ON Topic.id = LikeTopic.topicId" +
-        "        WHERE LikeTopic.personId = 1" +
+        "        WHERE LikeTopic.personId = ?" +
         ") AS FilTopic" +
         " ON Forum.id = FilTopic.forumId" +
         " JOIN Post" +
@@ -791,7 +791,7 @@ public class API implements APIProvider {
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
                 }
-                if (rs.isLast() && topicCount > 0) {
+                if (rs.isLast()) {
 
                     forumId = rs.getInt ("Forum.id");
                     topicTitle = rs.getString ("FilTopic.title");
