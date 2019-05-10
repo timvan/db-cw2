@@ -682,58 +682,69 @@ public class API implements APIProvider {
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
 
-        String countLikesSql = "SELECT COUNT(LikeTopic.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
-        "        (SELECT * FROM Person" +
-        "                WHERE username = ?) AS T" +
-        " LEFT JOIN Topic" +
-        " ON Topic.authorID = T.id" +
-        " LEFT JOIN LikeTopic" +
-        " ON Topic.id = LikeTopic.topicId" +
-        " UNION" +
-        " SELECT COUNT(LikePost.id) as countLikes, T.id, T.name, T.username, T.stuId FROM" +
-        "        (SELECT * FROM Person" +
-                        " WHERE username = ?) AS T" +
-        " LEFT JOIN Post" +
-        " ON Post.authorID = T.id" +
-        " LEFT JOIN LikePost" +
-        " ON Post.id = LikePost.postId";
+        // count number of Topics and Posts the user has authored which have been has liked
+
+        String sql = "SELECT COUNT(Topic.id) as countLikes, Person.id, Person.stuId, Person.name" +
+                " FROM LikeTopic" +
+                " LEFT JOIN Topic" +
+                " ON Topic.id = LikeTopic.topicId" +
+                " LEFT JOIN Person" +
+                " ON Topic.authorId = Person.id " +
+                " WHERE Person.username = ?" +
+                " UNION" +
+                " SELECT COUNT(Post.id) as countLikes, Person.id, Person.stuId, Person.name" +
+                " FROM LikePost" +
+                " LEFT JOIN Post" +
+                " ON Post.id = LikePost.postId" +
+                " LEFT JOIN Person" +
+                " ON Post.authorId = Person.id " +
+                " WHERE Person.username = ?";
 
         int userId = 0;
         String name = "";
         String studentId = "";
+
         int topicLikes = 0;
         int postLikes = 0;
-        List<TopicSummaryView> topicLiked = new ArrayList<> ();
 
-        try (PreparedStatement ps = c.prepareStatement (countLikesSql)) {
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setString (1, username);
             ps.setString (2, username);
             ResultSet rs = ps.executeQuery ();
 
-            while (rs.next ()) {
-                if (rs.isFirst ()) {
-                    topicLikes = rs.getInt ("countLikes");
-                    if (rs.getString ("stuId") != null) {
-                        studentId = rs.getString ("stuId");
-                    }
-                    name = rs.getString ("name");
-                    userId = rs.getInt ("id");
+            rs.next();
 
-                }
-                if (rs.isLast ()) {
-                    postLikes = rs.getInt ("countLikes");
-                }
+            if(rs.getInt("Person.id") == 0) return Result.failure("getAdvancedPersonView: Username does exist");
+
+            userId = rs.getInt("Person.id");
+            name = rs.getString("Person.name");
+            if (rs.getString ("stuId") != null) {
+                studentId = rs.getString ("stuId");
             }
+
+            topicLikes = rs.getInt ("countLikes");
+
+            if (rs.isLast()) {
+                postLikes = 0;
+            } else{
+                rs.next();
+                postLikes = rs.getInt ("countLikes");
+            }
+
         } catch (SQLException e) {
             return Result.fatal (e.getMessage ());
         }
-        String sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title,  Post.content, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
+
+        //
+
+        List<TopicSummaryView> topicLiked = new ArrayList<> ();
+        sql = "SELECT Person.name, Person.username, Forum.id, FilTopic.id, FilTopic.title,  Post.content, Post.id, Post.postedAt, FilTopic.postedAt, LikeTopic.topicId, LikeTopic.personId" +
         " FROM Forum" +
         " JOIN (" +
         "        SELECT Topic.id, Topic.title, Topic.forumId, Topic.postedAt FROM Topic" +
         "        JOIN LikeTopic" +
         "        ON Topic.id = LikeTopic.topicId" +
-        "        WHERE LikeTopic.personId = 1" +
+        "        WHERE LikeTopic.personId = ?" +
         ") AS FilTopic" +
         " ON Forum.id = FilTopic.forumId" +
         " JOIN Post" +
