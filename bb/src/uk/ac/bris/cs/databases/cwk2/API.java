@@ -158,7 +158,7 @@ public class API implements APIProvider {
     @Override
     public Result<List<ForumSummaryView>> getForums() {
 
-        String sql = "SELECT Forum.id, Forum.title, Topic.title, Topic.id, Post.postedAt" +
+        String sql = "SELECT Forum.id, Forum.title, Topic.title, Topic.id" +
                 " FROM Forum" +
                 " LEFT JOIN Topic" +
                 " ON Forum.id = Topic.forumId" +
@@ -800,6 +800,9 @@ public class API implements APIProvider {
                     topicCreatedAt =  rs.getString ("FilTopic.postedAt");
                     postCreatorName = rs.getString ("Person.name");
                     postCreatorUsername = rs.getString ("Person.username");
+                    if (topicLikesCount == 1) {
+                        postCount++;
+                    }
                     topicLiked.add (new TopicSummaryView (currentTopicId, forumId, topicTitle, postCount, topicCreatedAt,
                             lastPostTime, lastPostName, topicLikesCount / postCount , postCreatorName, postCreatorUsername));
                 }

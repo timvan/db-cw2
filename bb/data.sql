@@ -12,14 +12,14 @@ SELECT SLEEP(1);
 INSERT INTO Topic (title, authorId, forumId) VALUES ('Another Topic on A Forum', 2, 2);
 SELECT SLEEP(1);
 
-INSERT INTO Post (authorId, content, topicId) VALUES (1, "A Post on A Topic on A Forum", 1);
+INSERT INTO Post (authorId, content, topicId) VALUES (1, A Post on A Topic on A Forum, 1);
 SELECT SLEEP(1);
-INSERT INTO Post (authorId, content, topicId) VALUES (2, "Another Post on A Topic on A Forum", 1);
+INSERT INTO Post (authorId, content, topicId) VALUES (2, Another Post on A Topic on A Forum, 1);
 SELECT SLEEP(1);
 
-INSERT INTO Post (authorId, content, topicId) VALUES (1, "A Post on A Topic on Another Forum", 2);
+INSERT INTO Post (authorId, content, topicId) VALUES (1, A Post on A Topic on Another Forum, 2);
 SELECT SLEEP(1);
-INSERT INTO Post (authorId, content, topicId) VALUES (2, "Another Post on A Topic on Another Forum", 2);
+INSERT INTO Post (authorId, content, topicId) VALUES (2, Another Post on A Topic on Another Forum, 2);
 SELECT SLEEP(1);
 
 INSERT INTO LikeTopic (personId, topicId) VALUES (1, 1);
