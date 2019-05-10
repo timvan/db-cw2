@@ -132,7 +132,7 @@ public class API implements APIProvider {
         if (title.length() > longStringLength) return Result.failure("createForum: Title too long");
 
         // check forum title does not already exist
-        Result forumExists = forumTitleExists (title);
+        Result forumExists = forumExists(title);
         if (forumExists.isSuccess ()) return Result.failure("createForum: Forum title already exists");
         if (forumExists.isFatal ()) return forumExists;
 
@@ -542,7 +542,7 @@ public class API implements APIProvider {
                     postId = rs.getInt("Post.id");
                 }
                 rowNumber++;
-            };
+            }
 
             if(postId == -1) return Result.failure("likePost: Post does not exist");
 
@@ -823,6 +823,15 @@ public class API implements APIProvider {
 
     /* -------------------- custom helpers -------------------- */
 
+
+    /***
+     * Checks that username exists in database
+     * @param username
+     * @return Result.success(Person.id) if exists
+     * Result.failure if does not exist
+     * Result.fatal if SQLException occured
+     *
+     */
     private Result<Integer> usernameExists(String username) {
         String sql = "SELECT id" +
                 " FROM Person" +
@@ -841,21 +850,38 @@ public class API implements APIProvider {
         }
     }
 
-    private Result<Integer> forumExists(int forumId) {
-        String sql = "SELECT id" +
+    /***
+     * Checks that forum exists in database
+     * @param forumId
+     * @return Result.success(Forum.title) if exists
+     * Result.failure if does not exist
+     * Result.fatal if SQLException occured
+     */
+    private Result<String> forumExists(int forumId) {
+        String sql = "SELECT id, title" +
                 " FROM Forum WHERE id = ?";
 
         try (PreparedStatement ps = c.prepareStatement (sql)){
             ps.setInt(1, forumId);
             ResultSet rs = ps.executeQuery();
-            if(rs.next ()) return Result.success(forumId);
+            if(rs.next ()) {
+                String title = rs.getString ("title");
+                return Result.success(title);
+            }
             return Result.failure("Forum does not exist");
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
     }
 
-    private Result<Integer> forumTitleExists(String title) {
+    /***
+     * Checks that forum exists in database
+     * @param title
+     * @return Result.success(Forum.id) if exists
+     * Result.failure if does not exist
+     * Result.fatal if SQLException occured
+     */
+    private Result<Integer> forumExists(String title) {
         String sql = "SELECT id" +
                 " FROM Forum WHERE title = ?";
 
@@ -872,15 +898,23 @@ public class API implements APIProvider {
         }
     }
 
-    private Result<Integer> topicExists(int topicId) {
-        String sql = "SELECT id" +
+    /***
+     * Checks that forum exists in database
+     * @param topicId
+     * @return Result.success(Topic.title) if exists
+     * Result.failure if does not exist
+     * Result.fatal if SQLException occured
+     */
+    private Result<String> topicExists(int topicId) {
+        String sql = "SELECT id, title" +
                 " FROM Topic WHERE id = ?";
 
         try(PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                return Result.success(topicId);
+                String title = rs.getString ("title");
+                return Result.success(title);
             }
             return Result.failure("Topic does not exist");
         } catch (SQLException e) {
@@ -888,6 +922,14 @@ public class API implements APIProvider {
         }
     }
 
+    /***
+     * Creates a new SimpleTopicSummaryView if topicTitle is not null
+     * @param topicId
+     * @param forumId
+     * @param topicTitle
+     * @return SimpleTopicSummaryView
+     * If tpoicTitle is null then returns null
+     */
     private SimpleTopicSummaryView newSimpleTopicSummaryView (int topicId, int forumId, String topicTitle) {
         SimpleTopicSummaryView lastTopic;
         if (topicTitle == null) {
