@@ -530,15 +530,21 @@ public class API implements APIProvider {
                 " LEFT JOIN Post ON Post.topicId = Topic.id" +
                 " WHERE Topic.id = ?" +
                 " ORDER BY Post.id ASC";
-        int postId;
-        try (PreparedStatement ps = c.prepareStatement(sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)){
+
+        int postId = -1;
+        try (PreparedStatement ps = c.prepareStatement(sql)){
             ps.setInt(1, topicId);
             ResultSet rs = ps.executeQuery();
+            int rowNumber = 1;
 
-            if(rs.absolute(post) == false){
-                return  Result.failure("likePost: Post does not exist");
-            }
-            postId = rs.getInt("Post.id");
+            while(rs.next() && postId == -1) {
+                if(rowNumber == post) {
+                    postId = rs.getInt("Post.id");
+                }
+                rowNumber++;
+            };
+
+            if(postId == -1) return Result.failure("likePost: Post does not exist");
 
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
@@ -632,30 +638,21 @@ public class API implements APIProvider {
                 " GROUP BY Post.id" +
                 " ORDER BY Post.id ASC";
 
-        try (PreparedStatement ps = c.prepareStatement (sql, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
+        try (PreparedStatement ps = c.prepareStatement (sql)) {
             ps.setInt (1, topicId);
             ResultSet rs = ps.executeQuery ();
 
-
-            // check if there are any results returned
-            if(!rs.next()){
-                return Result.failure ("getTopic: Topic doesn't exist");
-            }
-
-            // here we check that each Topic has 1 or more posts
-            if(rs.getInt("Post.id") == 0){
-                return Result.fatal("getTopic: Topic exists with no post");
-            }
-
-            int forumId = rs.getInt("Forum.id");
-            String forumName = rs.getString ("Forum.title");
-            String topicTitle = rs.getString ("Topic.title");
-
-            rs.absolute(0);
             ArrayList<PostView> posts = new ArrayList<> ();
+            int forumId = -1;
+            String forumName = "";
+            String topicTitle = "";
             int postNumber = 1;
+            boolean hasResults = false;
             while(rs.next()){
-
+                hasResults = true;
+                forumId = rs.getInt("Forum.id");
+                forumName = rs.getString ("Forum.title");
+                topicTitle = rs.getString ("Topic.title");
                 String authorName = rs.getString ("Person.name");
                 String authorUsername = rs.getString ("Person.username");
                 String postText = rs.getString ("Post.content");
@@ -663,6 +660,11 @@ public class API implements APIProvider {
                 int postLikes = rs.getInt("LikePostCount");
 
                 posts.add(new PostView (forumId, topicId, postNumber++, authorName, authorUsername, postText, postPostedAt, postLikes));
+            }
+
+            // check if there are any results returned
+            if(!hasResults){
+                return Result.failure ("getTopic: Topic doesn't exist");
             }
 
             return Result.success (new TopicView (forumId, topicId, forumName, topicTitle, posts));
